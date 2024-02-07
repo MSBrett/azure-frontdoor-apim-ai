@@ -15,6 +15,9 @@ type keyVaultSecretsInfo = {
   secrets: keyVaultSecretInfo[]
 }
 
+param privateEndpointSubnetId string
+param virtualNetworkId string
+
 @description('Cognitive Services SKU. Defaults to S0.')
 param sku object = {
   name: 'S0'
@@ -52,6 +55,10 @@ param publicNetworkAccess string = 'Enabled'
 @description('Properties to store in a Key Vault.')
 param keyVaultSecrets keyVaultSecretsInfo?
 
+var privateEndpointName = '${name}-ep}'
+var privateDnsZoneName = 'privatelink.openai.azure.com'
+var pvtEndpointDnsGroupName = '${privateEndpointName}/openai-endpoint-zone'
+
 resource cognitiveServices 'Microsoft.CognitiveServices/accounts@2023-05-01' = {
   name: name
   location: location
@@ -86,6 +93,62 @@ module keyVaultSecret './key-vault-secret.bicep' = [for secret in keyVaultSecret
     value: secret.property == 'PrimaryKey' ? cognitiveServices.listKeys().key1 : ''
   }
 }]
+
+resource privateEndpoint 'Microsoft.Network/privateEndpoints@2021-05-01' = {
+  name: privateEndpointName
+  location: location
+  properties: {
+    subnet: {
+      id: privateEndpointSubnetId
+    }
+    privateLinkServiceConnections: [
+      {
+        name: privateEndpointName
+        properties: {
+          privateLinkServiceId: cognitiveServices.id
+          groupIds: [
+            'account'
+          ]
+        }
+      }
+    ]
+  }
+}
+
+resource privateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
+  name: privateDnsZoneName
+  location: 'global'
+  properties: {}
+}
+
+resource privateDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
+  parent: privateDnsZone
+  name: '${privateDnsZoneName}-link'
+  location: 'global'
+  properties: {
+    registrationEnabled: false
+    virtualNetwork: {
+      id: virtualNetworkId
+    }
+  }
+}
+
+resource pvtEndpointDnsGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2021-05-01' = {
+  name: pvtEndpointDnsGroupName
+  properties: {
+    privateDnsZoneConfigs: [
+      {
+        name: 'config1'
+        properties: {
+          privateDnsZoneId: privateDnsZone.id
+        }
+      }
+    ]
+  }
+  dependsOn: [
+    privateEndpoint
+  ]
+}
 
 @description('ID for the deployed Cognitive Services resource.')
 output id string = cognitiveServices.id

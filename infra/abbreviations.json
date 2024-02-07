@@ -2,7 +2,8 @@
   "cognitiveSearch": "srch-",
   "cognitiveServices": "cog-",
   "machineLearningWorkspace": "mlw-",
-
+  "ddosPlan": "ddos-",
+  "certificate": "cert-",
   "analysisServicesServer": "as",
   "databricksWorkspace": "dbw-",
   "dataExplorerCluster": "dec",

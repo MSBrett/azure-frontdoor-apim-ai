@@ -5,6 +5,12 @@ targetScope = 'subscription'
 @description('Name of the workload which is used to generate a short unique hash used in all resources.')
 param workloadName string
 
+
+@minLength(1)
+@maxLength(64)
+@description('The custom DNS name to use.')
+param dnsName string
+
 @minLength(1)
 @description('Primary location for all resources.')
 param location string
@@ -14,6 +20,8 @@ param resourceGroupName string = ''
 
 @description('Tags for all resources.')
 param tags object = {}
+
+param virtualNetworkAddressPrefix string = '10.2.0.0/23'
 
 type openAIInstanceInfo = {
   name: string?
@@ -25,17 +33,14 @@ type openAIInstanceInfo = {
 param managedIdentityName string = ''
 @description('Name of the Key Vault. If empty, a unique name will be generated.')
 param keyVaultName string = ''
+@description('Name of the Key Vault certificate. If empty, a unique name will be generated.')
+param certificateName string = ''
 @description('OpenAI instances to deploy. Defaults to 2 across different regions.')
 param openAIInstances openAIInstanceInfo[] = [
   {
     name: ''
-    location: 'westeurope'
-    suffix: 'weu'
-  }
-  {
-    name: ''
-    location: 'eastus'
-    suffix: 'eus'
+    location: location
+    suffix: location
   }
 ]
 @description('Name of the API Management service. If empty, a unique name will be generated.')
@@ -55,6 +60,20 @@ resource resourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' = {
   tags: union(tags, {})
 }
 
+module virtualNetwork 'core/virtual-network.bicep' = {
+  name: '${abbrs.virtualNetwork}${resourceToken}'
+  scope: resourceGroup
+  params: {
+    location: location
+    tags: union(tags, {})
+    virtualNetworkAddressPrefix: virtualNetworkAddressPrefix
+    bastionHostName: '${abbrs.virtualNetwork}${resourceToken}'
+    ddosPlanName: '${abbrs.ddosPlan}${resourceToken}'
+    publicIpName: '${abbrs.publicIPAddress}${resourceToken}'
+    virtualNetworkName: '${abbrs.virtualNetwork}${resourceToken}'
+  }
+}
+
 module managedIdentity './core/managed-identity.bicep' = {
   name: !empty(managedIdentityName) ? managedIdentityName : '${abbrs.managedIdentity}${resourceToken}'
   scope: resourceGroup
@@ -70,6 +89,21 @@ resource keyVaultAdministrator 'Microsoft.Authorization/roleDefinitions@2022-04-
   name: roles.keyVaultAdministrator
 }
 
+resource keyVaultSecretsOfficer 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
+  scope: resourceGroup
+  name: roles.keyVaultSecretsOfficer
+}
+
+resource keyVaultCertificatesOfficer 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
+  scope: resourceGroup
+  name: roles.keyVaultCertificatesOfficer
+}
+
+resource contributor 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
+  scope: resourceGroup
+  name: roles.contributor
+}
+
 module keyVault './core/key-vault.bicep' = {
   name: !empty(keyVaultName) ? keyVaultName : '${abbrs.keyVault}${resourceToken}'
   scope: resourceGroup
@@ -77,12 +111,39 @@ module keyVault './core/key-vault.bicep' = {
     name: !empty(keyVaultName) ? keyVaultName : '${abbrs.keyVault}${resourceToken}'
     location: location
     tags: union(tags, {})
+    privateEndpointSubnetId: virtualNetwork.outputs.serviceSubnetId
+    virtualNetworkId: virtualNetwork.outputs.virtualNetworkId
     roleAssignments: [
       {
         principalId: managedIdentity.outputs.principalId
         roleDefinitionId: keyVaultAdministrator.id
       }
+      {
+        principalId: managedIdentity.outputs.principalId
+        roleDefinitionId: keyVaultSecretsOfficer.id
+      }
+      {
+        principalId: managedIdentity.outputs.principalId
+        roleDefinitionId: keyVaultCertificatesOfficer.id
+      }
+      {
+        principalId: managedIdentity.outputs.principalId
+        roleDefinitionId: contributor.id
+      }
     ]
+  }
+}
+
+module certificate './core/key-vault-certificate.bicep' = {
+  scope: resourceGroup
+  name: !empty(certificateName) ? certificateName : '${abbrs.certificate}${resourceToken}'
+  dependsOn: [ managedIdentity ]
+  params: {
+    location: location
+    certificatename: !empty(certificateName) ? certificateName : '${abbrs.certificate}${resourceToken}'
+    dnsname: dnsName
+    vaultname: keyVault.outputs.name
+    identityResourceId: managedIdentity.outputs.id
   }
 }
 
@@ -93,6 +154,8 @@ module openAI './core/cognitive-services.bicep' = [for openAIInstance in openAII
     name: !empty(openAIInstance.name) ? openAIInstance.name! : '${abbrs.cognitiveServices}${resourceToken}-${openAIInstance.suffix}'
     location: openAIInstance.location
     tags: union(tags, {})
+    privateEndpointSubnetId: virtualNetwork.outputs.serviceSubnetId
+    virtualNetworkId: virtualNetwork.outputs.virtualNetworkId
     sku: {
       name: 'S0'
     }
@@ -149,6 +212,11 @@ module apiManagement './core/api-management.bicep' = {
     publisherEmail: apiManagementPublisherEmail
     publisherName: apiManagementPublisherName
     apiManagementIdentityId: managedIdentity.outputs.id
+    apiManagementIdentityClientId: managedIdentity.outputs.clientId
+    apimSubnetId: virtualNetwork.outputs.apimSubnetId
+    keyvaultid: '${keyVault.outputs.uri}secrets/${certificate.outputs.certificateName}'
+    dnsName: certificate.outputs.dnsname
+    ddosPlanId: virtualNetwork.outputs.ddosPlanId
   }
 }
 

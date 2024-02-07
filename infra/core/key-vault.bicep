@@ -5,6 +5,9 @@ param location string = resourceGroup().location
 @description('Tags for the resource.')
 param tags object = {}
 
+param privateEndpointSubnetId string
+param virtualNetworkId string
+
 type roleAssignmentInfo = {
     roleDefinitionId: string
     principalId: string
@@ -21,6 +24,10 @@ param enableSoftDelete bool = true
 @description('Role assignments to create for the Key Vault.')
 param roleAssignments roleAssignmentInfo[] = []
 
+var privateEndpointName = '${name}-ep'
+var privateDnsZoneName = 'privatelink.vaultcore.azure.net'
+var pvtEndpointDnsGroupName = '${privateEndpointName}/keyvault-endpoint-zone'
+
 resource keyVault 'Microsoft.KeyVault/vaults@2022-07-01' = {
     name: name
     location: location
@@ -32,7 +39,7 @@ resource keyVault 'Microsoft.KeyVault/vaults@2022-07-01' = {
         }
         tenantId: subscription().tenantId
         networkAcls: {
-            defaultAction: 'Allow'
+            defaultAction: 'Deny'
             bypass: 'AzureServices'
         }
         enableSoftDelete: enableSoftDelete
@@ -43,13 +50,69 @@ resource keyVault 'Microsoft.KeyVault/vaults@2022-07-01' = {
 
 resource assignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = [for roleAssignment in roleAssignments: {
     name: guid(keyVault.id, roleAssignment.principalId, roleAssignment.roleDefinitionId)
-    scope: keyVault
+    scope: keyVault // resourceGroup()
     properties: {
-        principalId: roleAssignment.principalId
-        roleDefinitionId: roleAssignment.roleDefinitionId
-        principalType: 'ServicePrincipal'
+      roleDefinitionId: roleAssignment.roleDefinitionId
+      principalId: roleAssignment.principalId
+      principalType: 'ServicePrincipal'
     }
 }]
+
+resource privateEndpoint 'Microsoft.Network/privateEndpoints@2021-05-01' = {
+  name: privateEndpointName
+  location: location
+  properties: {
+    subnet: {
+      id: privateEndpointSubnetId
+    }
+    privateLinkServiceConnections: [
+      {
+        name: privateEndpointName
+        properties: {
+          privateLinkServiceId: keyVault.id
+          groupIds: [
+            'vault'
+          ]
+        }
+      }
+    ]
+  }
+}
+
+resource privateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
+  name: privateDnsZoneName
+  location: 'global'
+  properties: {}
+}
+
+resource privateDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
+  parent: privateDnsZone
+  name: '${privateDnsZoneName}-link'
+  location: 'global'
+  properties: {
+    registrationEnabled: false
+    virtualNetwork: {
+      id: virtualNetworkId
+    }
+  }
+}
+
+resource pvtEndpointDnsGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2021-05-01' = {
+  name: pvtEndpointDnsGroupName
+  properties: {
+    privateDnsZoneConfigs: [
+      {
+        name: 'config1'
+        properties: {
+          privateDnsZoneId: privateDnsZone.id
+        }
+      }
+    ]
+  }
+  dependsOn: [
+    privateEndpoint
+  ]
+}
 
 @description('ID for the deployed Key Vault resource.')
 output id string = keyVault.id
