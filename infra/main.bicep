@@ -315,7 +315,7 @@ module loadBalancingPolicy './core/api-management-policy.bicep' = {
     apiManagementName: apiManagement.outputs.name
     apiName: openAIApi.outputs.name
     format: 'rawxml'
-    value: loadTextContent('./policies/round-robin-policy.xml') 
+    value: loadTextContent('./policies/single-node-policy.xml') 
   }
 }
 
