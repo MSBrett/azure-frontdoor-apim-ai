@@ -50,6 +50,24 @@ param apiManagementPublisherEmail string
 @description('Name of the API Management service publisher.')
 param apiManagementPublisherName string
 
+@description('Contact DL for security center alerts')
+param securityCenterContactEmail string
+
+@description('Optional. Deploy Azure Security Center. Default: false.')
+param deploySecurityCenter bool = false
+
+@description('Log Analytics Workspace Id')
+param logAnalyticsWorkspaceId string 
+
+@description('Log Analytics Workspace Resource Group')
+param logAnalyticsWorkspaceRg string
+
+@description('Log Analytics Workspace Name')
+param logAnalyticsWorkspaceName string
+
+@description('Log Analytics Workspace Location')
+param logAnalyticsWorkspaceLocation string
+
 var abbrs = loadJsonContent('./abbreviations.json')
 var roles = loadJsonContent('./roles.json')
 var resourceToken = toLower(uniqueString(subscription().id, workloadName, location))
@@ -59,6 +77,20 @@ resource resourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' = {
   location: location
   tags: union(tags, {})
 }
+
+/*
+module security_center 'core/security-center.bicep' = if (deploySecurityCenter) {
+  name: 'securityCenter'
+  scope: subscription()
+  params: {
+    securityCenterContactEmail: securityCenterContactEmail
+    logAnalyticsWorkspaceId: logAnalyticsWorkspaceId
+    logAnalyticsWorkspaceLocation: logAnalyticsWorkspaceLocation
+    logAnalyticsWorkspaceName: logAnalyticsWorkspaceName
+    logAnalyticsWorkspaceRg: logAnalyticsWorkspaceRg
+  }
+}
+*/
 
 module virtualNetwork 'core/virtual-network.bicep' = {
   name: '${abbrs.virtualNetwork}${resourceToken}'
@@ -99,9 +131,14 @@ resource keyVaultCertificatesOfficer 'Microsoft.Authorization/roleDefinitions@20
   name: roles.keyVaultCertificatesOfficer
 }
 
-resource contributor 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
+resource keyVaultSecretsUser 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
   scope: resourceGroup
-  name: roles.contributor
+  name: roles.keyVaultSecretsUser
+}
+
+resource owner 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
+  scope: resourceGroup
+  name: roles.owner
 }
 
 module keyVault './core/key-vault.bicep' = {
@@ -124,13 +161,18 @@ module keyVault './core/key-vault.bicep' = {
       }
       {
         principalId: managedIdentity.outputs.principalId
+        roleDefinitionId: keyVaultSecretsUser.id
+      }
+      {
+        principalId: managedIdentity.outputs.principalId
         roleDefinitionId: keyVaultCertificatesOfficer.id
       }
       {
         principalId: managedIdentity.outputs.principalId
-        roleDefinitionId: contributor.id
+        roleDefinitionId: owner.id
       }
     ]
+    apimPublicIpAddress: virtualNetwork.outputs.apimPublicIpAddress
   }
 }
 
@@ -214,9 +256,9 @@ module apiManagement './core/api-management.bicep' = {
     apiManagementIdentityId: managedIdentity.outputs.id
     apiManagementIdentityClientId: managedIdentity.outputs.clientId
     apimSubnetId: virtualNetwork.outputs.apimSubnetId
-    keyvaultid: '${keyVault.outputs.uri}secrets/${certificate.outputs.certificateName}'
+    keyvaultid:  '${keyVault.outputs.uri}secrets/${certificate.outputs.certificateName}' // '${keyVault.outputs.name}.privatelink.vaultcore.azure.net/secrets/${certificate.outputs.certificateName}'
     dnsName: certificate.outputs.dnsname
-    ddosPlanId: virtualNetwork.outputs.ddosPlanId
+    publicIpAddressId: virtualNetwork.outputs.apimPublicIpId
   }
 }
 

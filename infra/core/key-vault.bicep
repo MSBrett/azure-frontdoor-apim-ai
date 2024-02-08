@@ -7,6 +7,7 @@ param tags object = {}
 
 param privateEndpointSubnetId string
 param virtualNetworkId string
+param apimPublicIpAddress string
 
 type roleAssignmentInfo = {
     roleDefinitionId: string
@@ -39,8 +40,13 @@ resource keyVault 'Microsoft.KeyVault/vaults@2022-07-01' = {
         }
         tenantId: subscription().tenantId
         networkAcls: {
-            defaultAction: 'Deny'
+            defaultAction: 'allow' // so APIM can access it
             bypass: 'AzureServices'
+            ipRules: [
+              {
+                value: '${apimPublicIpAddress}/32'
+              }
+            ]
         }
         enableSoftDelete: enableSoftDelete
         enabledForTemplateDeployment: true

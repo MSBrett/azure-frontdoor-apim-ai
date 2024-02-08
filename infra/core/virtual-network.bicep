@@ -31,6 +31,14 @@ resource virtualNetwork 'Microsoft.Network/virtualNetworks@2023-02-01' = {
         name: 'Services'
         properties: {
           addressPrefix: cidrSubnet(virtualNetworkAddressPrefix, 26, 0)
+          networkSecurityGroup: {
+            id: serviceNsg.id
+          }
+          serviceEndpoints:[
+            {
+              service: 'Microsoft.KeyVault'
+            }
+          ]
         }
       }
       {
@@ -49,6 +57,9 @@ resource virtualNetwork 'Microsoft.Network/virtualNetworks@2023-02-01' = {
             }
             {
               service: 'Microsoft.EventHub'
+            }
+            {
+              service: 'Microsoft.KeyVault'
             }
           ]
         }
@@ -87,7 +98,7 @@ resource bastionHost 'Microsoft.Network/bastionHosts@2023-04-01' = if (deployBas
             id: '${virtualNetwork.id}/subnets/AzureBastionSubnet'
           }
           publicIPAddress: {
-            id: publicIp.id
+            id: bastionPublicIp.id
           }
           privateIPAllocationMethod: 'Dynamic'
         }
@@ -246,6 +257,14 @@ resource bastionNsg 'Microsoft.Network/networkSecurityGroups@2022-07-01' = {
         }
       }
     ]
+  }
+}
+
+resource serviceNsg 'Microsoft.Network/networkSecurityGroups@2020-06-01' = {
+  name: 'services-nsg'
+  location: location
+  properties: {
+    securityRules: [ ]
   }
 }
 
@@ -493,6 +512,7 @@ resource apimNsg 'Microsoft.Network/networkSecurityGroups@2020-06-01' = {
           ]
         }
       }
+      /* removed so we can import the swagger info from github.  Probably best to remove that external dependency.
       {
         name: 'Deny_All_Internet_Outbound'
         properties: {
@@ -506,6 +526,7 @@ resource apimNsg 'Microsoft.Network/networkSecurityGroups@2020-06-01' = {
           direction: 'Outbound'
         }
       }
+      */
     ]
   }
 }
@@ -517,8 +538,8 @@ resource ddosPlan 'Microsoft.Network/ddosProtectionPlans@2023-04-01' = {
   properties: {}
 }
 
-resource publicIp 'Microsoft.Network/publicIPAddresses@2023-04-01' = if (deployBastion) {
-  name: publicIpName
+resource bastionPublicIp 'Microsoft.Network/publicIPAddresses@2023-04-01' = if (deployBastion) {
+  name: 'bas-${publicIpName}'
   location: location
   tags: tags
   sku: {
@@ -528,6 +549,32 @@ resource publicIp 'Microsoft.Network/publicIPAddresses@2023-04-01' = if (deployB
     publicIPAddressVersion: 'IPv4'
     publicIPAllocationMethod: 'Static'
     idleTimeoutInMinutes: 4
+    dnsSettings: {
+      domainNameLabel: 'bas-${publicIpName}'
+    }
+    ddosSettings: {
+      protectionMode: 'Enabled'
+      ddosProtectionPlan: {
+        id: ddosPlan.id
+      }
+    }
+  }
+}
+
+resource apimPublicIp 'Microsoft.Network/publicIPAddresses@2023-04-01' = {
+  name: 'apim-${publicIpName}'
+  location: location
+  tags: tags
+  sku: {
+    name: 'Standard'
+  }
+  properties: {
+    publicIPAddressVersion: 'IPv4'
+    publicIPAllocationMethod: 'Static'
+    idleTimeoutInMinutes: 4
+    dnsSettings: {
+      domainNameLabel: 'apim-${publicIpName}'
+    }
     ddosSettings: {
       protectionMode: 'Enabled'
       ddosProtectionPlan: {
@@ -542,3 +589,6 @@ output virtualNetworkId string = virtualNetwork.id
 output serviceSubnetId string = virtualNetwork.properties.subnets[0].id
 output apimSubnetId string = virtualNetwork.properties.subnets[1].id
 output ddosPlanId string = ddosPlan.id
+output apimPublicIpName string = apimPublicIp.name
+output apimPublicIpId string = apimPublicIp.id
+output apimPublicIpAddress string = apimPublicIp.properties.ipAddress

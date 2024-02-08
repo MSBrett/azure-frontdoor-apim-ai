@@ -11,6 +11,8 @@ param apiManagementIdentityId string
 @description('Client ID for the Managed Identity associated with the API Management resource.')
 param apiManagementIdentityClientId string
 
+param publicIpAddressId string
+
 type skuInfo = {
   name: 'Developer' | 'Standard' | 'Premium' | 'Basic' | 'Consumption' | 'Isolated'
   capacity: int
@@ -18,7 +20,6 @@ type skuInfo = {
 
 param apimSubnetId string
 param keyvaultid string
-param ddosPlanId string
 
 @description('Email address of the owner for the API Management resource.')
 @minLength(1)
@@ -30,29 +31,6 @@ param publisherName string
 param sku skuInfo = {
   name: 'Developer'
   capacity: 1
-}
-
-resource publicIp 'Microsoft.Network/publicIPAddresses@2023-04-01' = {
-  name: name
-  location: location
-  tags: tags
-  sku: {
-    name: 'Standard'
-  }
-  properties: {
-    publicIPAddressVersion: 'IPv4'
-    publicIPAllocationMethod: 'Static'
-    idleTimeoutInMinutes: 4
-    dnsSettings: {
-      domainNameLabel: name
-    }
-    ddosSettings: {
-      protectionMode: 'Enabled'
-      ddosProtectionPlan: {
-        id: ddosPlanId
-      }
-    }
-  }
 }
 
 resource apiManagement 'Microsoft.ApiManagement/service@2023-03-01-preview' = {
@@ -70,7 +48,7 @@ resource apiManagement 'Microsoft.ApiManagement/service@2023-03-01-preview' = {
     publisherEmail: publisherEmail
     publisherName: publisherName
     virtualNetworkType: 'External'
-    publicIpAddressId: publicIp.id
+    publicIpAddressId: publicIpAddressId
     virtualNetworkConfiguration: {
       subnetResourceId: apimSubnetId
     }
