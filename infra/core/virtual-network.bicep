@@ -74,9 +74,12 @@ resource virtualNetwork 'Microsoft.Network/virtualNetworks@2023-02-01' = {
         }
       }
       {
-        name: 'GatewaySubnet'
+        name: 'ContainerApps'
         properties: {
-          addressPrefix: cidrSubnet(virtualNetworkAddressPrefix, 26, 3)
+          addressPrefix: cidrSubnet(virtualNetworkAddressPrefix, 23, 1)
+          networkSecurityGroup: {
+            id: containerAppNsg.id
+          }
         }
       }
     ]
@@ -262,6 +265,14 @@ resource bastionNsg 'Microsoft.Network/networkSecurityGroups@2022-07-01' = {
 
 resource serviceNsg 'Microsoft.Network/networkSecurityGroups@2020-06-01' = {
   name: 'services-nsg'
+  location: location
+  properties: {
+    securityRules: [ ]
+  }
+}
+
+resource containerAppNsg 'Microsoft.Network/networkSecurityGroups@2020-06-01' = {
+  name: 'ContainerApps-nsg'
   location: location
   properties: {
     securityRules: [ ]
@@ -588,6 +599,7 @@ output virtualNetworkName string = virtualNetwork.name
 output virtualNetworkId string = virtualNetwork.id
 output serviceSubnetId string = virtualNetwork.properties.subnets[0].id
 output apimSubnetId string = virtualNetwork.properties.subnets[1].id
+output containerAppEnvSubnetId string = virtualNetwork.properties.subnets[3].id
 output ddosPlanId string = ddosPlan.id
 output apimPublicIpName string = apimPublicIp.name
 output apimPublicIpId string = apimPublicIp.id

@@ -68,6 +68,8 @@ param logAnalyticsWorkspaceName string
 @description('Log Analytics Workspace Location')
 param logAnalyticsWorkspaceLocation string
 
+param text_embeddings_inference_container string = 'ghcr.io/huggingface/text-embeddings-inference:cpu-0.6'
+
 var abbrs = loadJsonContent('./abbreviations.json')
 var roles = loadJsonContent('./roles.json')
 var resourceToken = toLower(uniqueString(subscription().id, workloadName, location))
@@ -240,6 +242,40 @@ module openAI './core/cognitive-services.bicep' = [for openAIInstance in openAII
   }
 }]
 
+module containerAppEnv 'core/container-app-environment.bicep' = {
+  name: '${abbrs.containerAppsEnvironment}${resourceToken}'
+  scope: resourceGroup
+  params: {
+    location: location
+    containerAppEnvSubnetId: virtualNetwork.outputs.containerAppEnvSubnetId
+    containerAppEnvName: '${abbrs.containerAppsEnvironment}${resourceToken}'
+  }
+}
+
+module text_embeddings_inference 'core/container-app.bicep' = {
+  name: '${abbrs.containerApp}${resourceToken}'
+  scope: resourceGroup
+  params: {
+    location: location
+    containerAppName: '${abbrs.containerApp}${resourceToken}'
+    containerImage: text_embeddings_inference_container
+    cpuCore: '2'
+    targetPort: 443
+    memorySize: '4'
+    containerAppEnvId: containerAppEnv.outputs.id
+  }
+}
+
+module containerAppDns 'core/container-app-environment-dns.bicep' = {
+  name: '${abbrs.containerAppsEnvironment}${resourceToken}-dns'
+  scope: resourceGroup
+  params: {
+    defaultDomain: containerAppEnv.outputs.defaultDomain
+    ipv4Address: containerAppEnv.outputs.staticIp
+    virtualNetworkId: virtualNetwork.outputs.virtualNetworkId
+  }
+}
+
 module apiManagement './core/api-management.bicep' = {
   name: !empty(apiManagementName) ? apiManagementName : '${abbrs.apiManagementService}${resourceToken}'
   scope: resourceGroup
@@ -287,7 +323,20 @@ module openAIApi './core/api-management-openapi-api.bicep' = {
   }
 }
 
-module apiSubscription './core/api-management-subscription.bicep' = {
+module teiApi './core/api-management-openapi-api.bicep' = {
+  name: '${apiManagement.name}-api-tei'
+  scope: resourceGroup
+  params: {
+    name: 'tei'
+    apiManagementName: apiManagement.outputs.name
+    path: '/openai'
+    format: 'openapi-link'
+    displayName: 'Text-Embeddings-Inference'
+    value: 'https://huggingface.github.io/text-embeddings-inference/openapi.json'
+  }
+}
+
+module openAiSubscription './core/api-management-subscription.bicep' = {
   name: '${apiManagement.name}-subscription-openai'
   scope: resourceGroup
   params: {
@@ -295,6 +344,17 @@ module apiSubscription './core/api-management-subscription.bicep' = {
     apiManagementName: apiManagement.outputs.name
     displayName: 'OpenAI API Subscription'
     scope: '/apis/${openAIApi.outputs.name}'
+  }
+}
+
+module teiSubscription './core/api-management-subscription.bicep' = {
+  name: '${apiManagement.name}-subscription-tei'
+  scope: resourceGroup
+  params: {
+    name: 'tei-sub'
+    apiManagementName: apiManagement.outputs.name
+    displayName: 'Text Embeddings Inference API Subscription'
+    scope: '/apis/rerank'
   }
 }
 
@@ -308,7 +368,17 @@ module openAIApiBackend './core/api-management-backend.bicep' = [for (item, inde
   }
 }]
 
-module loadBalancingPolicy './core/api-management-policy.bicep' = {
+module teiAIApiBackend './core/api-management-backend.bicep' = {
+  name: '${apiManagement.name}-backend-tei'
+  scope: resourceGroup
+  params: {
+    name: 'tei'
+    apiManagementName: apiManagement.outputs.name
+    url: text_embeddings_inference.outputs.containerAppFQDN
+  }
+}
+
+module openAiLoadBalancingPolicy './core/api-management-policy.bicep' = {
   name: '${apiManagement.name}-policy-load-balancing'
   scope: resourceGroup
   params: {
@@ -319,6 +389,20 @@ module loadBalancingPolicy './core/api-management-policy.bicep' = {
   }
 }
 
+/*
+module teiLoadBalancingPolicy './core/api-management-policy.bicep' = {
+  name: '${apiManagement.name}-policy-load-balancing'
+  scope: resourceGroup
+  params: {
+    apiManagementName: apiManagement.outputs.name
+    apiName: openAIApi.outputs.name
+    format: 'rawxml'
+    value: loadTextContent('./policies/single-node-policy.xml') 
+  }
+}
+*/
+
+// Outputs
 output resourceGroupInstance object = {
   id: resourceGroup.id
   name: resourceGroup.name
@@ -349,5 +433,6 @@ output apiManagementInstance object = {
   id: apiManagement.outputs.id
   name: apiManagement.outputs.name
   gatewayUrl: apiManagement.outputs.gatewayUrl
-  subscriptionName: apiSubscription.outputs.name
+  openAiSubscriptionName: openAiSubscription.outputs.name
 }
+
