@@ -260,9 +260,9 @@ module text_embeddings_inference 'core/container-app.bicep' = {
     location: location
     containerAppName: '${abbrs.containerApp}${resourceToken}'
     containerImage: text_embeddings_inference_container
-    cpuCore: '4'
+    cpuCore: '2'
     targetPort: 80
-    memorySize: '8'
+    memorySize: '4'
     containerAppEnvId: containerAppEnv.outputs.id
     minReplicas: 3
   }
@@ -367,59 +367,9 @@ module teiApi './core/api-management-api.bicep' = {
     format: 'openapi-link'
     displayName: 'Text-Embeddings-Inference'
     value: 'https://huggingface.github.io/text-embeddings-inference/openapi.json'
-    serviceUrl: (text_embeddings_inference.outputs.containerAppPort == 443) ? 'https://${text_embeddings_inference.outputs.containerAppFQDN}' : 'https://${text_embeddings_inference.outputs.containerAppFQDN}:${text_embeddings_inference.outputs.containerAppPort}' //'https://sauravn-bge-test1.purplecliff-415ab930.eastus2.azurecontainerapps.io'
+    serviceUrl: 'https://${text_embeddings_inference.outputs.containerAppFQDN}'
   }
 }
-
-module teiApiExt './core/api-management-api.bicep' = {
-  name: '${apiManagement.name}-api-teiext'
-  scope: resourceGroup
-  params: {
-    name: 'teiext'
-    apiManagementName: apiManagement.outputs.name
-    path: '/teiext'
-    format: 'openapi-link'
-    displayName: 'Text-Embeddings-Inference-Ext'
-    value: 'https://huggingface.github.io/text-embeddings-inference/openapi.json'
-    serviceUrl: 'https://sauravn-bge-test1.purplecliff-415ab930.eastus2.azurecontainerapps.io'
-  }
-}
-
-/*
-module teiApi './core/api-management-openapi-api.bicep' = {
-  name: '${apiManagement.name}-api-tei'
-  scope: resourceGroup
-  params: {
-    name: 'tei'
-    apiManagementName: apiManagement.outputs.name
-    path: '/tei'
-    format: 'openapi-link'
-    displayName: 'Text-Embeddings-Inference'
-    value: 'https://huggingface.github.io/text-embeddings-inference/openapi.json'
-  }
-}
-
-module teiAIApiBackend './core/api-management-backend.bicep' = {
-  name: '${apiManagement.name}-backend-tei'
-  scope: resourceGroup
-  params: {
-    name: 'tei'
-    apiManagementName: apiManagement.outputs.name
-    url: 'https://sauravn-bge-test1.purplecliff-415ab930.eastus2.azurecontainerapps.io' //(text_embeddings_inference.outputs.containerAppPort == 443) ? 'https://${text_embeddings_inference.outputs.containerAppFQDN}' : 'https://${text_embeddings_inference.outputs.containerAppFQDN}:${text_embeddings_inference.outputs.containerAppPort}'
-  }
-}
-
-module teiPolicy './core/api-management-policy.bicep' = {
-  name: '${apiManagement.name}-policy-tei'
-  scope: resourceGroup
-  params: {
-    apiManagementName: apiManagement.outputs.name
-    apiName: teiApi.outputs.name
-    format: 'rawxml'
-    value: loadTextContent('./policies/tei.xml') 
-  }
-}
-*/
 
 // Outputs
 output resourceGroupInstance object = {
