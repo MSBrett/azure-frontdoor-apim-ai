@@ -23,6 +23,7 @@ param targetPort int // = 80
   '1.5'
   '1.75'
   '2'
+  '4'
 ])
 param cpuCore string // = '0.5'
 
@@ -35,6 +36,7 @@ param cpuCore string // = '0.5'
   '3'
   '3.5'
   '4'
+  '8'
 ])
 param memorySize string = '1'
 

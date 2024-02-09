@@ -260,10 +260,11 @@ module text_embeddings_inference 'core/container-app.bicep' = {
     location: location
     containerAppName: '${abbrs.containerApp}${resourceToken}'
     containerImage: text_embeddings_inference_container
-    cpuCore: '2'
-    targetPort: 443
-    memorySize: '4'
+    cpuCore: '4'
+    targetPort: 80
+    memorySize: '8'
     containerAppEnvId: containerAppEnv.outputs.id
+    minReplicas: 3
   }
 }
 
@@ -362,7 +363,7 @@ module teiApi './core/api-management-api.bicep' = {
   params: {
     name: 'tei'
     apiManagementName: apiManagement.outputs.name
-    path: '/tei'
+    path: '/ka'
     format: 'openapi-link'
     displayName: 'Text-Embeddings-Inference'
     value: 'https://huggingface.github.io/text-embeddings-inference/openapi.json'
@@ -380,7 +381,7 @@ module teiApiExt './core/api-management-api.bicep' = {
     format: 'openapi-link'
     displayName: 'Text-Embeddings-Inference-Ext'
     value: 'https://huggingface.github.io/text-embeddings-inference/openapi.json'
-    serviceUrl: (text_embeddings_inference.outputs.containerAppPort == 443) ? 'https://${text_embeddings_inference.outputs.containerAppFQDN}' : 'https://${text_embeddings_inference.outputs.containerAppFQDN}:${text_embeddings_inference.outputs.containerAppPort}' //'https://sauravn-bge-test1.purplecliff-415ab930.eastus2.azurecontainerapps.io'
+    serviceUrl: 'https://sauravn-bge-test1.purplecliff-415ab930.eastus2.azurecontainerapps.io'
   }
 }
 
