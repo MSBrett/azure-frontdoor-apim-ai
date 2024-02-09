@@ -68,7 +68,7 @@ param logAnalyticsWorkspaceName string
 @description('Log Analytics Workspace Location')
 param logAnalyticsWorkspaceLocation string
 
-param text_embeddings_inference_container string = 'ghcr.io/huggingface/text-embeddings-inference:cpu-0.6'
+param text_embeddings_inference_container string = 'docker.io/snpsctg/tei-bge:latest'
 
 var abbrs = loadJsonContent('./abbreviations.json')
 var roles = loadJsonContent('./roles.json')
@@ -198,6 +198,7 @@ module openAI './core/cognitive-services.bicep' = [for openAIInstance in openAII
     name: !empty(openAIInstance.name) ? openAIInstance.name! : '${abbrs.cognitiveServices}${resourceToken}-${openAIInstance.suffix}'
     location: openAIInstance.location
     tags: union(tags, {})
+    publicNetworkAccess: 'Disabled'
     privateEndpointSubnetId: virtualNetwork.outputs.serviceSubnetId
     virtualNetworkId: virtualNetwork.outputs.virtualNetworkId
     sku: {
@@ -298,6 +299,17 @@ module apiManagement './core/api-management.bicep' = {
   }
 }
 
+module apiSubscription './core/api-management-subscription.bicep' = {
+  name: '${apiManagement.name}-subscription-openai'
+  scope: resourceGroup
+  params: {
+    name: 'openai-sub'
+    apiManagementName: apiManagement.outputs.name
+    displayName: 'SCC API Subscription'
+    scope: '/apis'
+  }
+}
+
 module openAIApiKeyNamedValue './core/api-management-key-vault-named-value.bicep' = [for openAIInstance in openAIInstances: {
   name: 'NV-OPENAI-API-KEY-${toUpper(openAIInstance.suffix)}'
   scope: resourceGroup
@@ -310,7 +322,7 @@ module openAIApiKeyNamedValue './core/api-management-key-vault-named-value.bicep
   }
 }]
 
-module openAIApi './core/api-management-openapi-api.bicep' = {
+module openAIApi './core/api-management-api-ha.bicep' = {
   name: '${apiManagement.name}-api-openai'
   scope: resourceGroup
   params: {
@@ -323,50 +335,68 @@ module openAIApi './core/api-management-openapi-api.bicep' = {
   }
 }
 
-module teiApi './core/api-management-openapi-api.bicep' = {
-  name: '${apiManagement.name}-api-tei'
-  scope: resourceGroup
-  params: {
-    name: 'tei'
-    apiManagementName: apiManagement.outputs.name
-    path: '/openai'
-    format: 'openapi-link'
-    displayName: 'Text-Embeddings-Inference'
-    value: 'https://huggingface.github.io/text-embeddings-inference/openapi.json'
-  }
-}
-
-module openAiSubscription './core/api-management-subscription.bicep' = {
-  name: '${apiManagement.name}-subscription-openai'
-  scope: resourceGroup
-  params: {
-    name: 'openai-sub'
-    apiManagementName: apiManagement.outputs.name
-    displayName: 'OpenAI API Subscription'
-    scope: '/apis/${openAIApi.outputs.name}'
-  }
-}
-
-module teiSubscription './core/api-management-subscription.bicep' = {
-  name: '${apiManagement.name}-subscription-tei'
-  scope: resourceGroup
-  params: {
-    name: 'tei-sub'
-    apiManagementName: apiManagement.outputs.name
-    displayName: 'Text Embeddings Inference API Subscription'
-    scope: '/apis/rerank'
-  }
-}
-
 module openAIApiBackend './core/api-management-backend.bicep' = [for (item, index) in openAIInstances: {
   name: '${apiManagement.name}-backend-openai-${item.suffix}'
   scope: resourceGroup
   params: {
     name: 'OPENAI${toUpper(item.suffix)}'
     apiManagementName: apiManagement.outputs.name
-    url: openAI[index].outputs.endpoint
+    url: 'https://${openAI[index].outputs.name}.${openAI[index].outputs.privateDnsZoneName}' //https://cog-sxlwfegwbo5bg-eastus.privatelink.openai.azure.com
   }
 }]
+
+module openAiPolicy './core/api-management-policy.bicep' = {
+  name: '${apiManagement.name}-policy-openAI'
+  scope: resourceGroup
+  params: {
+    apiManagementName: apiManagement.outputs.name
+    apiName: openAIApi.outputs.name
+    format: 'rawxml'
+    value: loadTextContent('./policies/single-node-policy.xml') 
+  }
+}
+
+module teiApi './core/api-management-api.bicep' = {
+  name: '${apiManagement.name}-api-tei'
+  scope: resourceGroup
+  params: {
+    name: 'tei'
+    apiManagementName: apiManagement.outputs.name
+    path: '/tei'
+    format: 'openapi-link'
+    displayName: 'Text-Embeddings-Inference'
+    value: 'https://huggingface.github.io/text-embeddings-inference/openapi.json'
+    serviceUrl: (text_embeddings_inference.outputs.containerAppPort == 443) ? 'https://${text_embeddings_inference.outputs.containerAppFQDN}' : 'https://${text_embeddings_inference.outputs.containerAppFQDN}:${text_embeddings_inference.outputs.containerAppPort}' //'https://sauravn-bge-test1.purplecliff-415ab930.eastus2.azurecontainerapps.io'
+  }
+}
+
+module teiApiExt './core/api-management-api.bicep' = {
+  name: '${apiManagement.name}-api-teiext'
+  scope: resourceGroup
+  params: {
+    name: 'teiext'
+    apiManagementName: apiManagement.outputs.name
+    path: '/teiext'
+    format: 'openapi-link'
+    displayName: 'Text-Embeddings-Inference-Ext'
+    value: 'https://huggingface.github.io/text-embeddings-inference/openapi.json'
+    serviceUrl: (text_embeddings_inference.outputs.containerAppPort == 443) ? 'https://${text_embeddings_inference.outputs.containerAppFQDN}' : 'https://${text_embeddings_inference.outputs.containerAppFQDN}:${text_embeddings_inference.outputs.containerAppPort}' //'https://sauravn-bge-test1.purplecliff-415ab930.eastus2.azurecontainerapps.io'
+  }
+}
+
+/*
+module teiApi './core/api-management-openapi-api.bicep' = {
+  name: '${apiManagement.name}-api-tei'
+  scope: resourceGroup
+  params: {
+    name: 'tei'
+    apiManagementName: apiManagement.outputs.name
+    path: '/tei'
+    format: 'openapi-link'
+    displayName: 'Text-Embeddings-Inference'
+    value: 'https://huggingface.github.io/text-embeddings-inference/openapi.json'
+  }
+}
 
 module teiAIApiBackend './core/api-management-backend.bicep' = {
   name: '${apiManagement.name}-backend-tei'
@@ -374,30 +404,18 @@ module teiAIApiBackend './core/api-management-backend.bicep' = {
   params: {
     name: 'tei'
     apiManagementName: apiManagement.outputs.name
-    url: text_embeddings_inference.outputs.containerAppFQDN
+    url: 'https://sauravn-bge-test1.purplecliff-415ab930.eastus2.azurecontainerapps.io' //(text_embeddings_inference.outputs.containerAppPort == 443) ? 'https://${text_embeddings_inference.outputs.containerAppFQDN}' : 'https://${text_embeddings_inference.outputs.containerAppFQDN}:${text_embeddings_inference.outputs.containerAppPort}'
   }
 }
 
-module openAiLoadBalancingPolicy './core/api-management-policy.bicep' = {
-  name: '${apiManagement.name}-policy-load-balancing'
+module teiPolicy './core/api-management-policy.bicep' = {
+  name: '${apiManagement.name}-policy-tei'
   scope: resourceGroup
   params: {
     apiManagementName: apiManagement.outputs.name
-    apiName: openAIApi.outputs.name
+    apiName: teiApi.outputs.name
     format: 'rawxml'
-    value: loadTextContent('./policies/single-node-policy.xml') 
-  }
-}
-
-/*
-module teiLoadBalancingPolicy './core/api-management-policy.bicep' = {
-  name: '${apiManagement.name}-policy-load-balancing'
-  scope: resourceGroup
-  params: {
-    apiManagementName: apiManagement.outputs.name
-    apiName: openAIApi.outputs.name
-    format: 'rawxml'
-    value: loadTextContent('./policies/single-node-policy.xml') 
+    value: loadTextContent('./policies/tei.xml') 
   }
 }
 */
@@ -433,6 +451,6 @@ output apiManagementInstance object = {
   id: apiManagement.outputs.id
   name: apiManagement.outputs.name
   gatewayUrl: apiManagement.outputs.gatewayUrl
-  openAiSubscriptionName: openAiSubscription.outputs.name
+  sccApiSubscription: apiSubscription.outputs.name
 }
 

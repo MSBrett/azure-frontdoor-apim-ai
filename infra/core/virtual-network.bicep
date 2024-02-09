@@ -523,7 +523,7 @@ resource apimNsg 'Microsoft.Network/networkSecurityGroups@2020-06-01' = {
           ]
         }
       }
-      /* removed so we can import the swagger info from github.  Probably best to remove that external dependency.
+      /* removed so we can import swagger info from github.  Probably best to remove that external dependency.
       {
         name: 'Deny_All_Internet_Outbound'
         properties: {

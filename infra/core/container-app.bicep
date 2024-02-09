@@ -87,3 +87,4 @@ resource containerApp 'Microsoft.App/containerApps@2022-03-01' = {
 }
 
 output containerAppFQDN string = containerApp.properties.configuration.ingress.fqdn
+output containerAppPort int = containerApp.properties.configuration.ingress.targetPort

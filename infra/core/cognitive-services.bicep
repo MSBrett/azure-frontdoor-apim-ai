@@ -67,6 +67,11 @@ resource cognitiveServices 'Microsoft.CognitiveServices/accounts@2023-05-01' = {
   properties: {
     customSubDomainName: toLower(name)
     publicNetworkAccess: publicNetworkAccess
+    networkAcls: {
+      defaultAction: 'Allow'
+      ipRules: []
+      virtualNetworkRules: []
+    }
   }
   sku: sku
 }
@@ -158,3 +163,5 @@ output name string = cognitiveServices.name
 output endpoint string = cognitiveServices.properties.endpoint
 @description('Host for the deployed Cognitive Services resource.')
 output host string = split(cognitiveServices.properties.endpoint, '/')[2]
+
+output privateDnsZoneName string = privateDnsZoneName

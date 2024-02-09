@@ -13,6 +13,10 @@ resource apiManagement 'Microsoft.ApiManagement/service@2023-03-01-preview' exis
     properties: {
       protocol: 'http'
       url: url
+      tls: {
+        validateCertificateChain: false
+        validateCertificateName: false
+      }
     }
   }
 }
