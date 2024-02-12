@@ -5,11 +5,8 @@ targetScope = 'subscription'
 @description('Name of the workload which is used to generate a short unique hash used in all resources.')
 param workloadName string
 
-
-@minLength(1)
-@maxLength(64)
 @description('The custom DNS name to use.')
-param dnsName string
+param dnsName string = ''
 
 @minLength(1)
 @description('Primary location for all resources.')
@@ -80,7 +77,6 @@ resource resourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' = {
   tags: union(tags, {})
 }
 
-/*
 module security_center 'core/security-center.bicep' = if (deploySecurityCenter) {
   name: 'securityCenter'
   scope: subscription()
@@ -92,7 +88,6 @@ module security_center 'core/security-center.bicep' = if (deploySecurityCenter) 
     logAnalyticsWorkspaceRg: logAnalyticsWorkspaceRg
   }
 }
-*/
 
 module virtualNetwork 'core/virtual-network.bicep' = {
   name: '${abbrs.virtualNetwork}${resourceToken}'
@@ -102,7 +97,6 @@ module virtualNetwork 'core/virtual-network.bicep' = {
     tags: union(tags, {})
     virtualNetworkAddressPrefix: virtualNetworkAddressPrefix
     bastionHostName: '${abbrs.virtualNetwork}${resourceToken}'
-    ddosPlanName: '${abbrs.ddosPlan}${resourceToken}'
     publicIpName: '${abbrs.publicIPAddress}${resourceToken}'
     virtualNetworkName: '${abbrs.virtualNetwork}${resourceToken}'
   }
@@ -178,6 +172,7 @@ module keyVault './core/key-vault.bicep' = {
   }
 }
 
+/*
 module certificate './core/key-vault-certificate.bicep' = {
   scope: resourceGroup
   name: !empty(certificateName) ? certificateName : '${abbrs.certificate}${resourceToken}'
@@ -190,6 +185,7 @@ module certificate './core/key-vault-certificate.bicep' = {
     identityResourceId: managedIdentity.outputs.id
   }
 }
+*/
 
 module openAI './core/cognitive-services.bicep' = [for openAIInstance in openAIInstances: {
   name: !empty(openAIInstance.name) ? openAIInstance.name! : '${abbrs.cognitiveServices}${resourceToken}-${openAIInstance.suffix}'
@@ -281,6 +277,7 @@ module containerAppDns 'core/container-app-environment-dns.bicep' = {
 module apiManagement './core/api-management.bicep' = {
   name: !empty(apiManagementName) ? apiManagementName : '${abbrs.apiManagementService}${resourceToken}'
   scope: resourceGroup
+  dependsOn: [openAI]
   params: {
     name: !empty(apiManagementName) ? apiManagementName : '${abbrs.apiManagementService}${resourceToken}'
     location: location
@@ -294,8 +291,8 @@ module apiManagement './core/api-management.bicep' = {
     apiManagementIdentityId: managedIdentity.outputs.id
     apiManagementIdentityClientId: managedIdentity.outputs.clientId
     apimSubnetId: virtualNetwork.outputs.apimSubnetId
-    keyvaultid:  '${keyVault.outputs.uri}secrets/${certificate.outputs.certificateName}' // '${keyVault.outputs.name}.privatelink.vaultcore.azure.net/secrets/${certificate.outputs.certificateName}'
-    dnsName: certificate.outputs.dnsname
+    // keyvaultid:  '${keyVault.outputs.uri}secrets/${certificate.outputs.certificateName}' // '${keyVault.outputs.name}.privatelink.vaultcore.azure.net/secrets/${certificate.outputs.certificateName}'
+    // dnsName: certificate.outputs.dnsname
     publicIpAddressId: virtualNetwork.outputs.apimPublicIpId
   }
 }
@@ -314,6 +311,7 @@ module apiSubscription './core/api-management-subscription.bicep' = {
 module openAIApiKeyNamedValue './core/api-management-key-vault-named-value.bicep' = [for openAIInstance in openAIInstances: {
   name: 'NV-OPENAI-API-KEY-${toUpper(openAIInstance.suffix)}'
   scope: resourceGroup
+  dependsOn: [ keyVault, openAI ]
   params: {
     name: 'OPENAI-API-KEY-${toUpper(openAIInstance.suffix)}'
     displayName: 'OPENAI-API-KEY-${toUpper(openAIInstance.suffix)}'

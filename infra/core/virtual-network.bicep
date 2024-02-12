@@ -14,7 +14,6 @@ param deployBastion bool = false
 param virtualNetworkName string
 param bastionHostName string
 param publicIpName string
-param ddosPlanName string
 
 resource virtualNetwork 'Microsoft.Network/virtualNetworks@2023-02-01' = {
   name: virtualNetworkName
@@ -542,13 +541,6 @@ resource apimNsg 'Microsoft.Network/networkSecurityGroups@2020-06-01' = {
   }
 }
 
-resource ddosPlan 'Microsoft.Network/ddosProtectionPlans@2023-04-01' = {
-  name: ddosPlanName
-  location: location
-  tags: tags
-  properties: {}
-}
-
 resource bastionPublicIp 'Microsoft.Network/publicIPAddresses@2023-04-01' = if (deployBastion) {
   name: 'bas-${publicIpName}'
   location: location
@@ -562,12 +554,6 @@ resource bastionPublicIp 'Microsoft.Network/publicIPAddresses@2023-04-01' = if (
     idleTimeoutInMinutes: 4
     dnsSettings: {
       domainNameLabel: 'bas-${publicIpName}'
-    }
-    ddosSettings: {
-      protectionMode: 'Enabled'
-      ddosProtectionPlan: {
-        id: ddosPlan.id
-      }
     }
   }
 }
@@ -586,12 +572,6 @@ resource apimPublicIp 'Microsoft.Network/publicIPAddresses@2023-04-01' = {
     dnsSettings: {
       domainNameLabel: 'apim-${publicIpName}'
     }
-    ddosSettings: {
-      protectionMode: 'Enabled'
-      ddosProtectionPlan: {
-        id: ddosPlan.id
-      }
-    }
   }
 }
 
@@ -600,7 +580,6 @@ output virtualNetworkId string = virtualNetwork.id
 output serviceSubnetId string = virtualNetwork.properties.subnets[0].id
 output apimSubnetId string = virtualNetwork.properties.subnets[1].id
 output containerAppEnvSubnetId string = virtualNetwork.properties.subnets[3].id
-output ddosPlanId string = ddosPlan.id
 output apimPublicIpName string = apimPublicIp.name
 output apimPublicIpId string = apimPublicIp.id
 output apimPublicIpAddress string = apimPublicIp.properties.ipAddress

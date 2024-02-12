@@ -1,7 +1,7 @@
 @description('Name of the resource.')
 param name string
-@description('The DNS name of the API Management service. Must be a valid domain name.')
-param dnsName string
+// @description('The DNS name of the API Management service. Must be a valid domain name.')
+// param dnsName string
 @description('Location to deploy the resource. Defaults to the location of the resource group.')
 param location string = resourceGroup().location
 @description('Tags for the resource.')
@@ -19,7 +19,7 @@ type skuInfo = {
 }
 
 param apimSubnetId string
-param keyvaultid string
+// param keyvaultid string
 
 @description('Email address of the owner for the API Management resource.')
 @minLength(1)
@@ -54,13 +54,13 @@ resource apiManagement 'Microsoft.ApiManagement/service@2023-03-01-preview' = {
       subnetResourceId: apimSubnetId
     }
     hostnameConfigurations: [
-      {
+      /*{
         type: 'Proxy'
         hostName: dnsName
         keyVaultId: keyvaultid
         identityClientId: apiManagementIdentityClientId
         defaultSslBinding: true
-      }
+      }*/
     ]
     customProperties: {
       'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Ciphers.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA': 'false'
