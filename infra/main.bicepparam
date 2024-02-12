@@ -1,13 +1,13 @@
 
 using './main.bicep'
 
-param securityCenterContactEmail = ''
-param dnsName = 'digital.contoso.com'
-param logAnalyticsWorkspaceId = ''
-param logAnalyticsWorkspaceLocation = ''
-param logAnalyticsWorkspaceName = ''
-param logAnalyticsWorkspaceRg = ''
-param workloadName = 'aoai-apim-loadbalancing'
-param location = 'westeurope'
-param apiManagementPublisherEmail = ''
-param apiManagementPublisherName = ''
+param workloadName = 'contoso-aoai'
+param location = 'eastus'
+param tags = {
+  deploymentName: 'contoso'
+  environmentType: 'development'
+}
+param virtualNetworkAddressPrefix = '10.4.0.0/22'
+param apiManagementPublisherEmail = 'info@contoso.com'
+param apiManagementPublisherName = 'info@contoso.com'
+param logAnalyticsWorkspaceId = '/subscriptions/<id>/resourceGroups/<name>/providers/Microsoft.OperationalInsights/workspaces/<name>'

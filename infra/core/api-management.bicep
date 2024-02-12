@@ -8,8 +8,6 @@ param location string = resourceGroup().location
 param tags object = {}
 @description('ID for the Managed Identity associated with the API Management resource.')
 param apiManagementIdentityId string
-@description('Client ID for the Managed Identity associated with the API Management resource.')
-param apiManagementIdentityClientId string
 
 param publicIpAddressId string
 
@@ -88,3 +86,5 @@ output id string = apiManagement.id
 output name string = apiManagement.name
 @description('Gateway URL for the deployed API Management resource.')
 output gatewayUrl string = apiManagement.properties.gatewayUrl
+
+output gatewayHostName string = apiManagement.properties.hostnameConfigurations[0].hostName

@@ -3,11 +3,6 @@ targetScope = 'subscription'
 @description('Contact DL for security center alerts')
 param securityCenterContactEmail string = 'abuse@microsoft.com'
 
-param logAnalyticsWorkspaceId string
-param logAnalyticsWorkspaceRg string
-param logAnalyticsWorkspaceName string
-param logAnalyticsWorkspaceLocation string
-
 param policyDefinitionID string = '/providers/Microsoft.Authorization/policySetDefinitions/1f3afdf9-d0c9-4c3d-847f-89da613e70a8'
 
 resource mcsbAssignment 'Microsoft.Authorization/policyAssignments@2023-04-01' = {

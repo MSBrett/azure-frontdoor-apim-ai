@@ -5,9 +5,6 @@ targetScope = 'subscription'
 @description('Name of the workload which is used to generate a short unique hash used in all resources.')
 param workloadName string
 
-@description('The custom DNS name to use.')
-param dnsName string = ''
-
 @minLength(1)
 @description('Primary location for all resources.')
 param location string
@@ -30,16 +27,10 @@ type openAIInstanceInfo = {
 param managedIdentityName string = ''
 @description('Name of the Key Vault. If empty, a unique name will be generated.')
 param keyVaultName string = ''
-@description('Name of the Key Vault certificate. If empty, a unique name will be generated.')
-param certificateName string = ''
-@description('OpenAI instances to deploy. Defaults to 2 across different regions.')
-param openAIInstances openAIInstanceInfo[] = [
-  {
-    name: ''
-    location: location
-    suffix: location
-  }
-]
+
+@description('Name of the OpenAI service. If empty, a unique name will be generated.')
+param openAIName string = ''
+
 @description('Name of the API Management service. If empty, a unique name will be generated.')
 param apiManagementName string = ''
 @description('Email address for the API Management service publisher.')
@@ -47,25 +38,12 @@ param apiManagementPublisherEmail string
 @description('Name of the API Management service publisher.')
 param apiManagementPublisherName string
 
-@description('Contact DL for security center alerts')
-param securityCenterContactEmail string
-
-@description('Optional. Deploy Azure Security Center. Default: false.')
-param deploySecurityCenter bool = false
-
-@description('Log Analytics Workspace Id')
-param logAnalyticsWorkspaceId string 
-
-@description('Log Analytics Workspace Resource Group')
-param logAnalyticsWorkspaceRg string
-
-@description('Log Analytics Workspace Name')
-param logAnalyticsWorkspaceName string
-
-@description('Log Analytics Workspace Location')
-param logAnalyticsWorkspaceLocation string
+@description('Id of the log analytics workspace.')
+param logAnalyticsWorkspaceId string
 
 param text_embeddings_inference_container string = 'docker.io/snpsctg/tei-bge:latest'
+
+param publishedApiVersion string = 'v1'
 
 var abbrs = loadJsonContent('./abbreviations.json')
 var roles = loadJsonContent('./roles.json')
@@ -75,18 +53,6 @@ resource resourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' = {
   name: !empty(resourceGroupName) ? resourceGroupName : '${abbrs.resourceGroup}${workloadName}'
   location: location
   tags: union(tags, {})
-}
-
-module security_center 'core/security-center.bicep' = if (deploySecurityCenter) {
-  name: 'securityCenter'
-  scope: subscription()
-  params: {
-    securityCenterContactEmail: securityCenterContactEmail
-    logAnalyticsWorkspaceId: logAnalyticsWorkspaceId
-    logAnalyticsWorkspaceLocation: logAnalyticsWorkspaceLocation
-    logAnalyticsWorkspaceName: logAnalyticsWorkspaceName
-    logAnalyticsWorkspaceRg: logAnalyticsWorkspaceRg
-  }
 }
 
 module virtualNetwork 'core/virtual-network.bicep' = {
@@ -187,12 +153,12 @@ module certificate './core/key-vault-certificate.bicep' = {
 }
 */
 
-module openAI './core/cognitive-services.bicep' = [for openAIInstance in openAIInstances: {
-  name: !empty(openAIInstance.name) ? openAIInstance.name! : '${abbrs.cognitiveServices}${resourceToken}-${openAIInstance.suffix}'
+module openAI './core/cognitive-services.bicep' = {
+  name: !empty(openAIName) ? openAIName! : '${abbrs.cognitiveServices}${resourceToken}-aoai'
   scope: resourceGroup
   params: {
-    name: !empty(openAIInstance.name) ? openAIInstance.name! : '${abbrs.cognitiveServices}${resourceToken}-${openAIInstance.suffix}'
-    location: openAIInstance.location
+    name: !empty(openAIName) ? openAIName! : '${abbrs.cognitiveServices}${resourceToken}-aoai'
+    location: location
     tags: union(tags, {})
     publicNetworkAccess: 'Disabled'
     privateEndpointSubnetId: virtualNetwork.outputs.serviceSubnetId
@@ -232,12 +198,12 @@ module openAI './core/cognitive-services.bicep' = [for openAIInstance in openAII
       secrets: [
         {
           property: 'PrimaryKey'
-          name: 'OPENAI-API-KEY-${toUpper(openAIInstance.suffix)}'
+          name: 'OPENAI-API-KEY'
         }
       ]
     }
   }
-}]
+}
 
 module containerAppEnv 'core/container-app-environment.bicep' = {
   name: '${abbrs.containerAppsEnvironment}${resourceToken}'
@@ -289,7 +255,6 @@ module apiManagement './core/api-management.bicep' = {
     publisherEmail: apiManagementPublisherEmail
     publisherName: apiManagementPublisherName
     apiManagementIdentityId: managedIdentity.outputs.id
-    apiManagementIdentityClientId: managedIdentity.outputs.clientId
     apimSubnetId: virtualNetwork.outputs.apimSubnetId
     // keyvaultid:  '${keyVault.outputs.uri}secrets/${certificate.outputs.certificateName}' // '${keyVault.outputs.name}.privatelink.vaultcore.azure.net/secrets/${certificate.outputs.certificateName}'
     // dnsName: certificate.outputs.dnsname
@@ -308,20 +273,20 @@ module apiSubscription './core/api-management-subscription.bicep' = {
   }
 }
 
-module openAIApiKeyNamedValue './core/api-management-key-vault-named-value.bicep' = [for openAIInstance in openAIInstances: {
-  name: 'NV-OPENAI-API-KEY-${toUpper(openAIInstance.suffix)}'
+module openAIApiKeyNamedValue './core/api-management-key-vault-named-value.bicep' = {
+  name: 'NV-OPENAI-API-KEY'
   scope: resourceGroup
   dependsOn: [ keyVault, openAI ]
   params: {
-    name: 'OPENAI-API-KEY-${toUpper(openAIInstance.suffix)}'
-    displayName: 'OPENAI-API-KEY-${toUpper(openAIInstance.suffix)}'
+    name: 'OPENAI-API-KEY'
+    displayName: 'OPENAI-API-KEY'
     apiManagementName: apiManagement.outputs.name
     apiManagementIdentityClientId: managedIdentity.outputs.clientId
-    keyVaultSecretUri: '${keyVault.outputs.uri}secrets/OPENAI-API-KEY-${toUpper(openAIInstance.suffix)}'
+    keyVaultSecretUri: '${keyVault.outputs.uri}secrets/OPENAI-API-KEY'
   }
-}]
+}
 
-module openAIApi './core/api-management-api-ha.bicep' = {
+module openAIApi './core/api-management-api.bicep' = {
   name: '${apiManagement.name}-api-openai'
   scope: resourceGroup
   params: {
@@ -331,18 +296,9 @@ module openAIApi './core/api-management-api-ha.bicep' = {
     format: 'openapi-link'
     displayName: 'OpenAI'
     value: 'https://raw.githubusercontent.com/Azure/azure-rest-api-specs/main/specification/cognitiveservices/data-plane/AzureOpenAI/inference/preview/2023-07-01-preview/inference.json'
+    serviceUrl: 'https://${openAI.outputs.name}.${openAI.outputs.privateDnsZoneName}'
   }
 }
-
-module openAIApiBackend './core/api-management-backend.bicep' = [for (item, index) in openAIInstances: {
-  name: '${apiManagement.name}-backend-openai-${item.suffix}'
-  scope: resourceGroup
-  params: {
-    name: 'OPENAI${toUpper(item.suffix)}'
-    apiManagementName: apiManagement.outputs.name
-    url: 'https://${openAI[index].outputs.name}.${openAI[index].outputs.privateDnsZoneName}' //https://cog-sxlwfegwbo5bg-eastus.privatelink.openai.azure.com
-  }
-}]
 
 module openAiPolicy './core/api-management-policy.bicep' = {
   name: '${apiManagement.name}-policy-openAI'
@@ -351,7 +307,7 @@ module openAiPolicy './core/api-management-policy.bicep' = {
     apiManagementName: apiManagement.outputs.name
     apiName: openAIApi.outputs.name
     format: 'rawxml'
-    value: loadTextContent('./policies/single-node-policy.xml') 
+    value: loadTextContent('./policies/openai.xml') 
   }
 }
 
@@ -361,11 +317,22 @@ module teiApi './core/api-management-api.bicep' = {
   params: {
     name: 'tei'
     apiManagementName: apiManagement.outputs.name
-    path: '/ka'
+    path: '/${publishedApiVersion}'
     format: 'openapi-link'
     displayName: 'Text-Embeddings-Inference'
     value: 'https://huggingface.github.io/text-embeddings-inference/openapi.json'
     serviceUrl: 'https://${text_embeddings_inference.outputs.containerAppFQDN}'
+  }
+}
+
+module frontDoor './core/front-door.bicep' = {
+  name: '${abbrs.frontDoorProfile}${resourceToken}'
+  scope: resourceGroup
+  params: {
+    frontDoorEndpointName: '${abbrs.frontDoorProfile}${resourceToken}'
+    tags: union(tags, {})
+    apiEndpointHostName: apiManagement.outputs.gatewayHostName
+    frontDoorSkuName: 'Standard_AzureFrontDoor'
   }
 }
 
@@ -388,13 +355,13 @@ output keyVaultInstance object = {
   uri: keyVault.outputs.uri
 }
 
-output openAIInstances array = [for (item, index) in openAIInstances: {
-  name: openAI[index].outputs.name
-  host: openAI[index].outputs.host
-  endpoint: openAI[index].outputs.endpoint
-  location: item.location
-  suffix: item.suffix
-}]
+output openAIInstance object = {
+  name: openAI.outputs.name
+  host: openAI.outputs.host
+  endpoint: openAI.outputs.endpoint
+  location: location
+  suffix: 'aoai'
+}
 
 output apiManagementInstance object = {
   id: apiManagement.outputs.id

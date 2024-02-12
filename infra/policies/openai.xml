@@ -1,0 +1,18 @@
+<policies>
+    <inbound>
+        <set-header name="api-key" exists-action="override">
+            <value>{{OPENAI-API-KEY}}</value>
+        </set-header>
+        <rewrite-uri template="@{return context.Request.OriginalUrl.Path;}" />
+        <base />
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>
