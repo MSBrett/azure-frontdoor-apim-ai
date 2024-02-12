@@ -4,8 +4,8 @@
 ## Get latest from https://github.com/github/gitignore/blob/main/VisualStudio.gitignore
 
 *.bicepparam
-*.sh
-*.ps1
+prod-*.sh
+prod-*.ps1
 
 # User-specific files
 *.rsuser
