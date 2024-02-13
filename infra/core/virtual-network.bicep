@@ -289,7 +289,7 @@ resource apimNsg 'Microsoft.Network/networkSecurityGroups@2020-06-01' = {
           protocol: 'Tcp'
           sourcePortRange: '*'
           destinationPortRange: '80'
-          sourceAddressPrefix: 'Internet'
+          sourceAddressPrefix: 'AzureFrontDoor.Backend'
           destinationAddressPrefix: 'VirtualNetwork'
           access: 'Allow'
           priority: 100
@@ -302,7 +302,7 @@ resource apimNsg 'Microsoft.Network/networkSecurityGroups@2020-06-01' = {
           protocol: 'Tcp'
           sourcePortRange: '*'
           destinationPortRange: '443'
-          sourceAddressPrefix: 'Internet'
+          sourceAddressPrefix: 'AzureFrontDoor.Backend'
           destinationAddressPrefix: 'VirtualNetwork'
           access: 'Allow'
           priority: 110
