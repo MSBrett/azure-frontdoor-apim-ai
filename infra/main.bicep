@@ -17,6 +17,8 @@ param tags object = {}
 
 param virtualNetworkAddressPrefix string = '10.2.0.0/23'
 
+param ipAddressRangesToAllow array = ['0.0.0.0/0']
+
 type openAIInstanceInfo = {
   name: string?
   location: string
@@ -334,6 +336,7 @@ module frontDoor './core/front-door.bicep' = {
     apiEndpointHostName: apiManagement.outputs.gatewayHostName
     frontDoorSkuName: 'Standard_AzureFrontDoor'
     apiUrlSuffix: apiUrlSuffix
+    ipAddressRangesToAllow: ipAddressRangesToAllow
   }
 }
 

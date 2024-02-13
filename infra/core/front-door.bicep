@@ -18,11 +18,22 @@ param frontDoorSkuName string = 'Standard_AzureFrontDoor'
 
 param apiUrlSuffix string
 
+@description('The mode that the WAF should be deployed using. In \'Prevention\' mode, the WAF will block requests it detects as malicious. In \'Detection\' mode, the WAF will not block requests and will simply log the request.')
+@allowed([
+  'Detection'
+  'Prevention'
+])
+param wafMode string = 'Prevention'
+
+@description('The IP address ranges to block. Individual IP addresses can be specified as-is. Ranges should be specified using CIDR notation.')
+param ipAddressRangesToAllow array
+
 var frontDoorProfileName = frontDoorEndpointName
 var frontDoorOriginGroupName = 'sccOriginGroup'
 var frontDoorOriginName = 'sccOrigin'
 var frontDoorRouteName = 'sccRoute'
 var frontDoorRuleSetName = 'sccRuleSet'
+var frontDoorSecurityPolicyName = 'sccSecurityPolicy'
 
 resource frontDoorProfile 'Microsoft.Cdn/profiles@2023-07-01-preview' = {
   name: frontDoorProfileName
@@ -180,6 +191,77 @@ resource frontDoorRoute 'Microsoft.Cdn/profiles/afdEndpoints/routes@2023-07-01-p
     forwardingProtocol: 'HttpsOnly'
     linkToDefaultDomain: 'Enabled'
     httpsRedirect: 'Enabled'
+  }
+}
+
+resource wafPolicy 'Microsoft.Network/frontDoorWebApplicationFirewallPolicies@2020-11-01' = {
+  name: 'wafPolicy'
+  location: 'global'
+  sku: {
+    name: frontDoorSkuName
+  }
+  properties: {
+    policySettings: {
+      enabledState: 'Enabled'
+      mode: wafMode
+    }
+    customRules: {
+      rules: [
+        {
+          name: 'AllowTrafficFromIPRanges'
+          priority: 111
+          enabledState: 'Enabled'
+          ruleType: 'MatchRule'
+          action: 'Allow'
+          matchConditions: [
+            {
+              matchVariable: 'RemoteAddr'
+              operator: 'IPMatch'
+              matchValue: ipAddressRangesToAllow
+            }
+          ]
+        }
+        {
+          name: 'DefaultDeny'
+          priority: 999
+          enabledState: 'Enabled'
+          ruleType: 'MatchRule'
+          action: 'Block'
+          matchConditions: [
+            {
+              matchVariable: 'RemoteAddr'
+              operator: 'IPMatch'
+              matchValue: ['0.0.0.0/0']
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+
+resource frontDoorSecurityPolicy 'Microsoft.Cdn/profiles/securityPolicies@2021-06-01' = {
+  parent: frontDoorProfile
+  name: frontDoorSecurityPolicyName
+  properties: {
+    parameters: {
+      type: 'WebApplicationFirewall'
+      wafPolicy: {
+        id: wafPolicy.id
+      }
+      associations: [
+        {
+          domains: [
+            {
+              id: frontDoorEndpoint.id
+            }
+          ]
+          patternsToMatch: [
+            '/*'
+          ]
+        }
+      ]
+    }
   }
 }
 
