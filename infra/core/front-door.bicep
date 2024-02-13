@@ -16,6 +16,8 @@ param tags object = {}
 ])
 param frontDoorSkuName string = 'Standard_AzureFrontDoor'
 
+param apiUrlSuffix string
+
 var frontDoorProfileName = frontDoorEndpointName
 var frontDoorOriginGroupName = 'sccOriginGroup'
 var frontDoorOriginName = 'sccOrigin'
@@ -88,7 +90,7 @@ resource generate 'Microsoft.Cdn/profiles/ruleSets/rules@2023-07-01-preview' = {
         parameters: {
           destination: '/openai/deployments/gpt-35-turbo/chat/completions?api-version=${openAIApiVersion}'
           preserveUnmatchedPath: false
-          sourcePattern: '/v1/generate'
+          sourcePattern: '${apiUrlSuffix}/generate'
           typeName: 'DeliveryRuleUrlRewriteActionParameters'
         }
       }
@@ -98,7 +100,7 @@ resource generate 'Microsoft.Cdn/profiles/ruleSets/rules@2023-07-01-preview' = {
         name: 'UrlPath'
         parameters: {
           matchValues: [
-            '/v1/generate'
+            '${apiUrlSuffix}/generate'
           ]
           negateCondition: false
           operator: 'Contains'
@@ -127,7 +129,7 @@ resource embed 'Microsoft.Cdn/profiles/ruleSets/rules@2023-07-01-preview' = {
         parameters: {
           destination: '/openai/deployments/text-embedding-ada-002/embeddings?api-version=${openAIApiVersion}'
           preserveUnmatchedPath: false
-          sourcePattern: '/v1/embed'
+          sourcePattern: '${apiUrlSuffix}/embed'
           typeName: 'DeliveryRuleUrlRewriteActionParameters'
         }
       }
@@ -137,7 +139,7 @@ resource embed 'Microsoft.Cdn/profiles/ruleSets/rules@2023-07-01-preview' = {
         name: 'UrlPath'
         parameters: {
           matchValues: [
-            '/v1/embed'
+            '${apiUrlSuffix}/embed'
           ]
           negateCondition: false
           operator: 'Contains'

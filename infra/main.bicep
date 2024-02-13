@@ -43,7 +43,7 @@ param logAnalyticsWorkspaceId string
 
 param text_embeddings_inference_container string = 'docker.io/snpsctg/tei-bge:latest'
 
-param publishedApiVersion string = 'v1'
+param apiUrlSuffix string = '/${workloadName}/edag/ka/v1'
 
 var abbrs = loadJsonContent('./abbreviations.json')
 var roles = loadJsonContent('./roles.json')
@@ -317,7 +317,7 @@ module teiApi './core/api-management-api.bicep' = {
   params: {
     name: 'tei'
     apiManagementName: apiManagement.outputs.name
-    path: '/${publishedApiVersion}'
+    path: apiUrlSuffix
     format: 'openapi-link'
     displayName: 'Text-Embeddings-Inference'
     value: 'https://huggingface.github.io/text-embeddings-inference/openapi.json'
@@ -333,6 +333,7 @@ module frontDoor './core/front-door.bicep' = {
     tags: union(tags, {})
     apiEndpointHostName: apiManagement.outputs.gatewayHostName
     frontDoorSkuName: 'Standard_AzureFrontDoor'
+    apiUrlSuffix: apiUrlSuffix
   }
 }
 
