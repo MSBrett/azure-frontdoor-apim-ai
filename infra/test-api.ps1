@@ -2,14 +2,15 @@ param (
     [string]$apiUrl = 'https://afd-contoso.b02.azurefd.net', # API URL from Azure Front Door
     [string]$apiSubscriptionKey = 'abc123', # API Subscription key from Azure API Management
     [ValidateSet('gpt-3.5-turbo', 'text-embedding-ada-002', 'text-embeddings-inference')]
-    [string]$model = 'gpt-3.5-turbo'
+    [string]$workloadName = 'alpha-aoai'
 )
 
 $completionsEndpoint = ""
 $requestBodyString = ""
+$apiUrlSuffix = '/{0}/edag/ka/v1' -f $workloadName
 
 if ($model -eq 'gpt-3.5-turbo') {
-    $completionsEndpoint = "{0}/v1/generate" -f $apiUrl
+    $completionsEndpoint = "{0}{1}/generate" -f $apiUrl, $apiUrlSuffix
     $requestBody = @{
         messages = @(
             @{
@@ -29,14 +30,14 @@ if ($model -eq 'gpt-3.5-turbo') {
     }
     $requestBodyString = $requestBody | ConvertTo-Json -Depth 10 -Compress
 } elseif ($model -eq 'text-embedding-ada-002') {
-    $completionsEndpoint = "{0}/v1/embed" -f $apiUrl
+    $completionsEndpoint = "{0}{1}/embed" -f $apiUrl, $apiUrlSuffix
     $requestBodyString = '{
         "input": "The food was delicious and the waiter...",
         "model": "text-embedding-ada-002",
         "encoding_format": "float"
       }'
 } elseif ($model -eq 'text-embeddings-inference') {
-    $completionsEndpoint = "{0}/v1/rerank" -f $apiUrl
+    $completionsEndpoint = "{0}{1}/rerank" -f $apiUrl, $apiUrlSuffix
     $requestBodyString = '{"query":"What is Deep Learning?", "texts": ["Deep Learning is not...", "Deep learning is..."]}'
 } else {
     throw "Model $model not supported"
