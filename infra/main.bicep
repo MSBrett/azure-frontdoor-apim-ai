@@ -43,13 +43,24 @@ param apiManagementPublisherName string
 @description('Id of the log analytics workspace.')
 param logAnalyticsWorkspaceId string
 
+@description('Required.  Name of the azure front door profile.')
+param frontDoorProfileName string
+param frontDoorResourceGroupName string
+param frontDoorSubscriptionId string
+
 param text_embeddings_inference_container string = 'docker.io/snpsctg/tei-bge:latest'
 
-param apiUrlSuffix string = '/${workloadName}/edag/ka/v1'
+param apiPathSuffix string = '/${workloadName}/v1'
 
 var abbrs = loadJsonContent('./abbreviations.json')
 var roles = loadJsonContent('./roles.json')
 var resourceToken = toLower(uniqueString(subscription().id, workloadName, location))
+var safeWorkloadName = replace(replace(replace('${workloadName}', '-', ''), '_', ''), ' ', '')
+var apimPolicy = loadTextContent('./policies/api.xml')
+
+var rewriteUrl_generate = '/openai/deployments/gpt-35-turbo/chat/completions?api-version=2023-07-01-preview'
+var rewriteUrl_embed = '/openai/deployments/text-embedding-ada-002/embeddings?api-version=2023-07-01-preview'
+var rewriteUrl_rerank = '/rerank'
 
 resource resourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' = {
   name: !empty(resourceGroupName) ? resourceGroupName : '${abbrs.resourceGroup}${workloadName}'
@@ -139,21 +150,6 @@ module keyVault './core/key-vault.bicep' = {
     apimPublicIpAddress: virtualNetwork.outputs.apimPublicIpAddress
   }
 }
-
-/*
-module certificate './core/key-vault-certificate.bicep' = {
-  scope: resourceGroup
-  name: !empty(certificateName) ? certificateName : '${abbrs.certificate}${resourceToken}'
-  dependsOn: [ managedIdentity ]
-  params: {
-    location: location
-    certificatename: !empty(certificateName) ? certificateName : '${abbrs.certificate}${resourceToken}'
-    dnsname: dnsName
-    vaultname: keyVault.outputs.name
-    identityResourceId: managedIdentity.outputs.id
-  }
-}
-*/
 
 module openAI './core/cognitive-services.bicep' = {
   name: !empty(openAIName) ? openAIName! : '${abbrs.cognitiveServices}${resourceToken}-aoai'
@@ -270,7 +266,7 @@ module apiSubscription './core/api-management-subscription.bicep' = {
   params: {
     name: 'openai-sub'
     apiManagementName: apiManagement.outputs.name
-    displayName: 'SCC API Subscription'
+    displayName: 'API Subscription'
     scope: '/apis'
   }
 }
@@ -288,54 +284,68 @@ module openAIApiKeyNamedValue './core/api-management-key-vault-named-value.bicep
   }
 }
 
-module openAIApi './core/api-management-api.bicep' = {
-  name: '${apiManagement.name}-api-openai'
+module api './core/api-management-api.bicep' = {
+  name: '${apiManagement.name}-api'
   scope: resourceGroup
   params: {
-    name: 'openai'
+    name: 'api'
     apiManagementName: apiManagement.outputs.name
-    path: '/openai'
-    format: 'openapi-link'
-    displayName: 'OpenAI'
-    value: 'https://raw.githubusercontent.com/Azure/azure-rest-api-specs/main/specification/cognitiveservices/data-plane/AzureOpenAI/inference/preview/2023-07-01-preview/inference.json'
-    serviceUrl: 'https://${openAI.outputs.name}.${openAI.outputs.privateDnsZoneName}'
+    path: apiPathSuffix
+    format: 'openapi+json'
+    displayName: 'API'
+    value: loadTextContent('./api/ka.openapi+json.json')
   }
 }
 
-module openAiPolicy './core/api-management-policy.bicep' = {
-  name: '${apiManagement.name}-policy-openAI'
+module apiPolicy_generate './core/api-management-operation-policy.bicep' = {
+  name: '${apiManagement.name}-policy-generate'
   scope: resourceGroup
   params: {
     apiManagementName: apiManagement.outputs.name
-    apiName: openAIApi.outputs.name
+    apiName: api.outputs.name
     format: 'rawxml'
-    value: loadTextContent('./policies/openai.xml') 
+    value: replace(replace(replace(apimPolicy, '<REWRITEURL>', rewriteUrl_generate) , '<SERVICEURL>', 'https://${openAI.outputs.name}.${openAI.outputs.privateDnsZoneName}'), '<FRONTDOORID>', frontDoor.outputs.frontDoorId)
+    operationName: 'generate'
   }
 }
 
-module teiApi './core/api-management-api.bicep' = {
-  name: '${apiManagement.name}-api-tei'
+module apiPolicy_embed './core/api-management-operation-policy.bicep' = {
+  name: '${apiManagement.name}-policy-embed'
   scope: resourceGroup
   params: {
-    name: 'tei'
     apiManagementName: apiManagement.outputs.name
-    path: apiUrlSuffix
-    format: 'openapi-link'
-    displayName: 'Text-Embeddings-Inference'
-    value: 'https://huggingface.github.io/text-embeddings-inference/openapi.json'
-    serviceUrl: 'https://${text_embeddings_inference.outputs.containerAppFQDN}'
+    apiName: api.outputs.name
+    format: 'rawxml'
+    value: replace(replace(replace(apimPolicy, '<REWRITEURL>', rewriteUrl_embed) , '<SERVICEURL>', 'https://${openAI.outputs.name}.${openAI.outputs.privateDnsZoneName}'), '<FRONTDOORID>', frontDoor.outputs.frontDoorId)
+    operationName: 'embed'
   }
 }
 
-module frontDoor './core/front-door.bicep' = {
-  name: '${abbrs.frontDoorProfile}${resourceToken}'
+module apiPolicy_rerank './core/api-management-operation-policy.bicep' = {
+  name: '${apiManagement.name}-policy-rerank'
   scope: resourceGroup
   params: {
-    frontDoorEndpointName: '${abbrs.frontDoorProfile}${resourceToken}'
-    tags: union(tags, {})
+    apiManagementName: apiManagement.outputs.name
+    apiName: api.outputs.name
+    format: 'rawxml'
+    value: replace(replace(replace(apimPolicy, '<REWRITEURL>', rewriteUrl_rerank) , '<SERVICEURL>', 'https://${text_embeddings_inference.outputs.containerAppFQDN}'), '<FRONTDOORID>', frontDoor.outputs.frontDoorId)
+    operationName: 'rerank'
+  }
+}
+
+resource frontDoorResourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' existing = {
+  name: frontDoorResourceGroupName
+  scope : subscription(frontDoorSubscriptionId)
+}
+
+module frontDoor './core/front-door-config.bicep' = {
+  name: '${abbrs.frontDoorEndpoint}${resourceToken}'
+  scope: frontDoorResourceGroup
+  params: {
+    frontDoorConfigName: '${safeWorkloadName}${resourceToken}'
+    frontDoorProfileName : frontDoorProfileName
     apiEndpointHostName: apiManagement.outputs.gatewayHostName
     frontDoorSkuName: 'Standard_AzureFrontDoor'
-    apiUrlSuffix: apiUrlSuffix
     ipAddressRangesToAllow: ipAddressRangesToAllow
   }
 }
@@ -371,6 +381,6 @@ output apiManagementInstance object = {
   id: apiManagement.outputs.id
   name: apiManagement.outputs.name
   gatewayUrl: apiManagement.outputs.gatewayUrl
-  sccApiSubscription: apiSubscription.outputs.name
+  apiSubscriptionName: apiSubscription.outputs.name
 }
 

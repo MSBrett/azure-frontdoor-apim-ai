@@ -1,13 +1,10 @@
 @description('The name of the Front Door endpoint to create. This must be globally unique.')
-param frontDoorEndpointName string = 'afd-${uniqueString(resourceGroup().id)}'
+param frontDoorConfigName string
+
+param frontDoorProfileName string
 
 @description('Required.  The hostname of the backend API to route to.')
 param apiEndpointHostName string
-
-param openAIApiVersion string = '2023-07-01-preview'
-
-@description('Tags for all resources.')
-param tags object = {}
 
 @description('The name of the SKU to use when creating the Front Door profile.')
 @allowed([
@@ -15,8 +12,6 @@ param tags object = {}
   'Premium_AzureFrontDoor'
 ])
 param frontDoorSkuName string = 'Standard_AzureFrontDoor'
-
-param apiUrlSuffix string
 
 @description('The mode that the WAF should be deployed using. In \'Prevention\' mode, the WAF will block requests it detects as malicious. In \'Detection\' mode, the WAF will not block requests and will simply log the request.')
 @allowed([
@@ -28,24 +23,12 @@ param wafMode string = 'Prevention'
 @description('The IP address ranges to block. Individual IP addresses can be specified as-is. Ranges should be specified using CIDR notation.')
 param ipAddressRangesToAllow array
 
-var frontDoorProfileName = frontDoorEndpointName
-var frontDoorOriginGroupName = 'sccOriginGroup'
-var frontDoorOriginName = 'sccOrigin'
-var frontDoorRouteName = 'sccRoute'
-var frontDoorRuleSetName = 'sccRuleSet'
-var frontDoorSecurityPolicyName = 'sccSecurityPolicy'
-
-resource frontDoorProfile 'Microsoft.Cdn/profiles@2023-07-01-preview' = {
+resource frontDoorProfile 'Microsoft.Cdn/profiles@2023-07-01-preview' existing = {
   name: frontDoorProfileName
-  location: 'global'
-  tags: tags
-  sku: {
-    name: frontDoorSkuName
-  }
 }
 
 resource frontDoorEndpoint 'Microsoft.Cdn/profiles/afdEndpoints@2023-07-01-preview' = {
-  name: frontDoorEndpointName
+  name: frontDoorConfigName
   parent: frontDoorProfile
   location: 'global'
   properties: {
@@ -54,7 +37,7 @@ resource frontDoorEndpoint 'Microsoft.Cdn/profiles/afdEndpoints@2023-07-01-previ
 }
 
 resource frontDoorOriginGroup 'Microsoft.Cdn/profiles/originGroups@2023-07-01-preview' = {
-  name: frontDoorOriginGroupName
+  name: frontDoorConfigName
   parent: frontDoorProfile
   properties: {
     loadBalancingSettings: {
@@ -72,7 +55,7 @@ resource frontDoorOriginGroup 'Microsoft.Cdn/profiles/originGroups@2023-07-01-pr
 }
 
 resource frontDoorOrigin 'Microsoft.Cdn/profiles/originGroups/origins@2023-07-01-preview' = {
-  name: frontDoorOriginName
+  name: frontDoorConfigName
   parent: frontDoorOriginGroup
   properties: {
     hostName: apiEndpointHostName
@@ -86,88 +69,8 @@ resource frontDoorOrigin 'Microsoft.Cdn/profiles/originGroups/origins@2023-07-01
   }
 }
 
-resource frontDoorRuleSet 'Microsoft.Cdn/profiles/ruleSets@2023-07-01-preview' = {
-  name: frontDoorRuleSetName
-  parent: frontDoorProfile
-}
-
-resource generate 'Microsoft.Cdn/profiles/ruleSets/rules@2023-07-01-preview' = {
-  name: 'generate'
-  parent: frontDoorRuleSet
-  properties: {
-    actions: [
-      {
-        name: 'UrlRewrite'
-        parameters: {
-          destination: '/openai/deployments/gpt-35-turbo/chat/completions?api-version=${openAIApiVersion}'
-          preserveUnmatchedPath: false
-          sourcePattern: '${apiUrlSuffix}/generate'
-          typeName: 'DeliveryRuleUrlRewriteActionParameters'
-        }
-      }
-    ]
-    conditions: [
-      {
-        name: 'UrlPath'
-        parameters: {
-          matchValues: [
-            '${apiUrlSuffix}/generate'
-          ]
-          negateCondition: false
-          operator: 'Contains'
-          transforms: [
-            'Lowercase'
-          ]
-          typeName: 'DeliveryRuleUrlPathMatchConditionParameters'
-        }
-      }
-    ]
-    matchProcessingBehavior: 'Stop'
-    order: 1
-  }
-}
-
-resource embed 'Microsoft.Cdn/profiles/ruleSets/rules@2023-07-01-preview' = {
-  name: 'embed'
-  dependsOn: [
-    generate
-  ]
-  parent: frontDoorRuleSet
-  properties: {
-    actions: [
-      {
-        name: 'UrlRewrite'
-        parameters: {
-          destination: '/openai/deployments/text-embedding-ada-002/embeddings?api-version=${openAIApiVersion}'
-          preserveUnmatchedPath: false
-          sourcePattern: '${apiUrlSuffix}/embed'
-          typeName: 'DeliveryRuleUrlRewriteActionParameters'
-        }
-      }
-    ]
-    conditions: [
-      {
-        name: 'UrlPath'
-        parameters: {
-          matchValues: [
-            '${apiUrlSuffix}/embed'
-          ]
-          negateCondition: false
-          operator: 'Contains'
-          transforms: [
-            'Lowercase'
-          ]
-          typeName: 'DeliveryRuleUrlPathMatchConditionParameters'
-        }
-      }
-    ]
-    matchProcessingBehavior: 'Stop'
-    order: 2
-  }
-}
-
 resource frontDoorRoute 'Microsoft.Cdn/profiles/afdEndpoints/routes@2023-07-01-preview' = {
-  name: frontDoorRouteName
+  name: frontDoorConfigName
   parent: frontDoorEndpoint
   dependsOn: [
     frontDoorOrigin // This explicit dependency is required to ensure that the origin group is not empty when the route is created.
@@ -183,11 +86,6 @@ resource frontDoorRoute 'Microsoft.Cdn/profiles/afdEndpoints/routes@2023-07-01-p
     patternsToMatch: [
       '/*'
     ]
-    ruleSets: [
-      {
-        id: frontDoorRuleSet.id
-      }
-    ]
     forwardingProtocol: 'HttpsOnly'
     linkToDefaultDomain: 'Enabled'
     httpsRedirect: 'Enabled'
@@ -195,7 +93,7 @@ resource frontDoorRoute 'Microsoft.Cdn/profiles/afdEndpoints/routes@2023-07-01-p
 }
 
 resource wafPolicy 'Microsoft.Network/frontDoorWebApplicationFirewallPolicies@2020-11-01' = {
-  name: 'wafPolicy'
+  name: frontDoorConfigName
   location: 'global'
   sku: {
     name: frontDoorSkuName
@@ -242,7 +140,7 @@ resource wafPolicy 'Microsoft.Network/frontDoorWebApplicationFirewallPolicies@20
 
 resource frontDoorSecurityPolicy 'Microsoft.Cdn/profiles/securityPolicies@2021-06-01' = {
   parent: frontDoorProfile
-  name: frontDoorSecurityPolicyName
+  name: frontDoorConfigName
   properties: {
     parameters: {
       type: 'WebApplicationFirewall'
@@ -266,3 +164,4 @@ resource frontDoorSecurityPolicy 'Microsoft.Cdn/profiles/securityPolicies@2021-0
 }
 
 output frontDoorEndpointHostName string = frontDoorEndpoint.properties.hostName
+output frontDoorId string = frontDoorProfile.properties.frontDoorId

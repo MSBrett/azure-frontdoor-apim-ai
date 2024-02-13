@@ -2,8 +2,6 @@
 param name string
 @description('Name of the API Management associated with the API.')
 param apiManagementName string
-@description('The Uri of the API.')
-param serviceUrl string
 @description('Display name of the API.')
 param displayName string
 @description('Relative URL for the API and all of its resource paths associated with the API Management resource.')
@@ -30,7 +28,6 @@ resource apiManagement 'Microsoft.ApiManagement/service@2023-03-01-preview' exis
       format: format
       value: value
       subscriptionRequired: true
-      serviceUrl: serviceUrl
     }
   }
 }

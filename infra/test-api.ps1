@@ -1,13 +1,14 @@
 param (
-    [string]$apiUrl = 'https://afd-contoso.b02.azurefd.net', # API URL from Azure Front Door
-    [string]$apiSubscriptionKey = 'abc123', # API Subscription key from Azure API Management
+    [string]$apiUrl = 'https://apim-contoso.azure-api.net',
+    [string]$apiSubscriptionKey = '5d63424dc66e43f8b3371e1dcf6504b7',
     [ValidateSet('gpt-3.5-turbo', 'text-embedding-ada-002', 'text-embeddings-inference')]
-    [string]$workloadName = 'alpha-aoai'
+    [string]$model = 'gpt-3.5-turbo',
+    [string]$workloadName = 'contoso',
+    [string]$apiUrlSuffix = '/api/v1' -f $workloadName
 )
 
 $completionsEndpoint = ""
 $requestBodyString = ""
-$apiUrlSuffix = '/{0}/edag/ka/v1' -f $workloadName
 
 if ($model -eq 'gpt-3.5-turbo') {
     $completionsEndpoint = "{0}{1}/generate" -f $apiUrl, $apiUrlSuffix
