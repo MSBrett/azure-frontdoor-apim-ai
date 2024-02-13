@@ -23,6 +23,8 @@ param wafMode string = 'Prevention'
 @description('The IP address ranges to block. Individual IP addresses can be specified as-is. Ranges should be specified using CIDR notation.')
 param ipAddressRangesToAllow array
 
+param pathToMatch string = '/*'
+
 resource frontDoorProfile 'Microsoft.Cdn/profiles@2023-07-01-preview' existing = {
   name: frontDoorProfileName
 }
@@ -84,7 +86,7 @@ resource frontDoorRoute 'Microsoft.Cdn/profiles/afdEndpoints/routes@2023-07-01-p
       'Https'
     ]
     patternsToMatch: [
-      '/*'
+      pathToMatch
     ]
     forwardingProtocol: 'HttpsOnly'
     linkToDefaultDomain: 'Enabled'

@@ -347,6 +347,7 @@ module frontDoor './core/front-door-config.bicep' = {
     apiEndpointHostName: apiManagement.outputs.gatewayHostName
     frontDoorSkuName: 'Standard_AzureFrontDoor'
     ipAddressRangesToAllow: ipAddressRangesToAllow
+    pathToMatch: '${apiPathSuffix}/*'
   }
 }
 

@@ -1,6 +1,6 @@
 param (
     [string]$apiUrl = 'https://apim-contoso.azure-api.net',
-    [string]$apiSubscriptionKey = '5d63424dc66e43f8b3371e1dcf6504b7',
+    [string]$apiSubscriptionKey = '12345',
     [ValidateSet('gpt-3.5-turbo', 'text-embedding-ada-002', 'text-embeddings-inference')]
     [string]$model = 'gpt-3.5-turbo',
     [string]$workloadName = 'contoso',
