@@ -1,10 +1,10 @@
 @description('The name of the Front Door endpoint to create. This must be globally unique.')
 param frontDoorProfileName string = 'afd-${uniqueString(resourceGroup().id)}'
 
+param dnsZoneName string
+
 @description('Id of the log analytics workspace.')
 param logAnalyticsWorkspaceId string
-
-param logRetentionInDays int = 30
 
 @description('Tags for all resources.')
 param tags object = {}
@@ -23,6 +23,9 @@ resource frontDoorProfile 'Microsoft.Cdn/profiles@2023-07-01-preview' = {
   sku: {
     name: frontDoorSkuName
   }
+  identity: {
+    type: 'SystemAssigned'
+  }
 }
 
 resource logAnalyticsWorkspaceDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
@@ -34,15 +37,17 @@ resource logAnalyticsWorkspaceDiagnostics 'Microsoft.Insights/diagnosticSettings
       {
         category: 'FrontDoorWebApplicationFirewallLog'
         enabled: true
-        retentionPolicy: {
-          days: logRetentionInDays
-          enabled: true
-        }
       }
     ]
   }
 }
 
+resource zone 'Microsoft.Network/dnsZones@2018-05-01' = {
+  name: dnsZoneName
+  location: 'global'
+}
+
 output id string = frontDoorProfile.id
 output name string = frontDoorProfile.name
 output frontDoorId string = frontDoorProfile.properties.frontDoorId
+output frontDoorPrincipalId string = frontDoorProfile.identity.principalId

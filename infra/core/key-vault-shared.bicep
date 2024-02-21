@@ -5,14 +5,12 @@ param location string = resourceGroup().location
 @description('Tags for the resource.')
 param tags object = {}
 
-param privateEndpointSubnetId string
-param virtualNetworkId string
-param apimPublicIpAddress string
-
 type roleAssignmentInfo = {
     roleDefinitionId: string
     principalId: string
 }
+
+param publicIpAddressToAllow string = '127.0.0.1'
 
 @description('Key Vault SKU name. Defaults to standard.')
 @allowed([
@@ -25,9 +23,6 @@ param enableSoftDelete bool = true
 @description('Role assignments to create for the Key Vault.')
 param roleAssignments roleAssignmentInfo[] = []
 
-var privateEndpointName = '${name}-ep'
-var privateDnsZoneName = 'privatelink.vaultcore.azure.net'
-var pvtEndpointDnsGroupName = '${privateEndpointName}/keyvault-endpoint-zone'
 
 resource keyVault 'Microsoft.KeyVault/vaults@2022-07-01' = {
     name: name
@@ -40,11 +35,11 @@ resource keyVault 'Microsoft.KeyVault/vaults@2022-07-01' = {
         }
         tenantId: subscription().tenantId
         networkAcls: {
-            defaultAction: 'allow' // so APIM can access it
-            bypass: 'AzureServices'
+            defaultAction: 'deny' 
+            bypass: 'AzureServices' // so AFD can access it
             ipRules: [
               {
-                value: '${apimPublicIpAddress}/32'
+                value: '${publicIpAddressToAllow}/32'
               }
             ]
         }
@@ -63,62 +58,6 @@ resource assignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = [for 
       principalType: 'ServicePrincipal'
     }
 }]
-
-resource privateEndpoint 'Microsoft.Network/privateEndpoints@2021-05-01' = {
-  name: privateEndpointName
-  location: location
-  properties: {
-    subnet: {
-      id: privateEndpointSubnetId
-    }
-    privateLinkServiceConnections: [
-      {
-        name: privateEndpointName
-        properties: {
-          privateLinkServiceId: keyVault.id
-          groupIds: [
-            'vault'
-          ]
-        }
-      }
-    ]
-  }
-}
-
-resource privateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
-  name: privateDnsZoneName
-  location: 'global'
-  properties: {}
-}
-
-resource privateDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
-  parent: privateDnsZone
-  name: '${privateDnsZoneName}-link'
-  location: 'global'
-  properties: {
-    registrationEnabled: false
-    virtualNetwork: {
-      id: virtualNetworkId
-    }
-  }
-}
-
-resource pvtEndpointDnsGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2021-05-01' = {
-  name: pvtEndpointDnsGroupName
-  properties: {
-    privateDnsZoneConfigs: [
-      {
-        name: 'config1'
-        properties: {
-          privateDnsZoneId: privateDnsZone.id
-        }
-      }
-    ]
-  }
-  dependsOn: [
-    privateEndpoint
-  ]
-}
 
 @description('ID for the deployed Key Vault resource.')
 output id string = keyVault.id

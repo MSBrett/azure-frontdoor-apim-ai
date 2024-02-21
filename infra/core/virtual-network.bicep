@@ -278,7 +278,7 @@ resource containerAppNsg 'Microsoft.Network/networkSecurityGroups@2020-06-01' = 
   }
 }
 
-resource apimNsg 'Microsoft.Network/networkSecurityGroups@2020-06-01' = {
+resource apimNsg 'Microsoft.Network/networkSecurityGroups@2020-06-01' =  if (deployBastion) {
   name: 'apiManagement-nsg'
   location: location
   properties: {

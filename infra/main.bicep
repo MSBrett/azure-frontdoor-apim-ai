@@ -47,7 +47,7 @@ param logAnalyticsWorkspaceId string
 param frontDoorProfileName string
 param frontDoorResourceGroupName string
 param frontDoorSubscriptionId string
-
+param dnsZoneName string 
 param text_embeddings_inference_container string = 'docker.io/snpsctg/tei-bge:latest'
 
 param apiPathSuffix string = '/${workloadName}/v1'
@@ -116,7 +116,7 @@ resource owner 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
   name: roles.owner
 }
 
-module keyVault './core/key-vault.bicep' = {
+module keyVault './core/key-vault-private.bicep' = {
   name: !empty(keyVaultName) ? keyVaultName : '${abbrs.keyVault}${resourceToken}'
   scope: resourceGroup
   params: {
@@ -147,7 +147,7 @@ module keyVault './core/key-vault.bicep' = {
         roleDefinitionId: owner.id
       }
     ]
-    apimPublicIpAddress: virtualNetwork.outputs.apimPublicIpAddress
+    publicIpAddressToAllow: virtualNetwork.outputs.apimPublicIpAddress
   }
 }
 
@@ -348,6 +348,8 @@ module frontDoor './core/front-door-config.bicep' = {
     frontDoorSkuName: 'Standard_AzureFrontDoor'
     ipAddressRangesToAllow: ipAddressRangesToAllow
     pathToMatch: '${apiPathSuffix}/*'
+    azureDnsZone: dnsZoneName
+    azureDnsName: workloadName
   }
 }
 

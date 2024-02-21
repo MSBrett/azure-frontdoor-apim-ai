@@ -1,8 +1,8 @@
 @description('The name of the Front Door endpoint to create. This must be globally unique.')
 param frontDoorConfigName string
-
 param frontDoorProfileName string
-
+param azureDnsZone string
+param azureDnsName string
 @description('Required.  The hostname of the backend API to route to.')
 param apiEndpointHostName string
 
@@ -25,16 +25,64 @@ param ipAddressRangesToAllow array
 
 param pathToMatch string = '/*'
 
+resource dnsZone 'Microsoft.Network/dnsZones@2018-05-01' existing = {
+  name: azureDnsZone
+}
+
 resource frontDoorProfile 'Microsoft.Cdn/profiles@2023-07-01-preview' existing = {
   name: frontDoorProfileName
+}
+
+resource customDomain 'Microsoft.Cdn/profiles/customDomains@2023-07-01-preview' = {
+  parent: frontDoorProfile
+  name: replace('${azureDnsName}.${azureDnsZone}','.', '-')
+  properties: {
+    azureDnsZone: {
+      id: dnsZone.id
+    }
+    hostName: '${azureDnsName}.${azureDnsZone}'
+    tlsSettings: {
+      certificateType: 'ManagedCertificate'
+      minimumTlsVersion: 'TLS12'
+    }
+  }
 }
 
 resource frontDoorEndpoint 'Microsoft.Cdn/profiles/afdEndpoints@2023-07-01-preview' = {
   name: frontDoorConfigName
   parent: frontDoorProfile
+  dependsOn: [
+    customDomain
+  ]
   location: 'global'
   properties: {
     enabledState: 'Enabled'
+  }
+}
+
+resource cnameRecord 'Microsoft.Network/dnsZones/CNAME@2018-05-01' = {
+  parent: dnsZone
+  name: azureDnsName
+  properties: {
+    TTL: 1800
+    CNAMERecord: {
+      cname: frontDoorEndpoint.properties.hostName
+    }
+  }
+}
+
+resource validationTxtRecord 'Microsoft.Network/dnsZones/TXT@2018-05-01' = {
+  parent: dnsZone
+  name: '_dnsauth.${azureDnsName}'
+  properties: {
+    TTL: 1800
+    TXTRecords: [
+      {
+        value: [
+          customDomain.properties.validationProperties.validationToken
+        ]
+      }
+    ]
   }
 }
 
@@ -71,6 +119,7 @@ resource frontDoorOrigin 'Microsoft.Cdn/profiles/originGroups/origins@2023-07-01
   }
 }
 
+
 resource frontDoorRoute 'Microsoft.Cdn/profiles/afdEndpoints/routes@2023-07-01-preview' = {
   name: frontDoorConfigName
   parent: frontDoorEndpoint
@@ -78,6 +127,11 @@ resource frontDoorRoute 'Microsoft.Cdn/profiles/afdEndpoints/routes@2023-07-01-p
     frontDoorOrigin // This explicit dependency is required to ensure that the origin group is not empty when the route is created.
   ]
   properties: {
+    customDomains: [
+      {
+        id: customDomain.id
+      }
+    ]
     originGroup: {
       id: frontDoorOriginGroup.id
     }
