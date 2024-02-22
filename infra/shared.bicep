@@ -15,15 +15,12 @@ param logAnalyticsResourceGroupName string = 'Observability'
 @description('Name of the resource group. If empty, a unique name will be generated.')
 param azureFrontDoorResourceGroupName string = 'GlobalNetworking'
 
-param publicIpAddressToAllow string
-
 param dnsZoneName string
 
 @description('Tags for all resources.')
 param tags object = {}
 
 var abbrs = loadJsonContent('./abbreviations.json')
-var roles = loadJsonContent('./roles.json')
 var resourceToken = toLower(uniqueString(subscription().id, logAnalyticsResourceGroupName, location))
 var workspaceName = !empty(logAnalyticsWorkspaceName) ? logAnalyticsWorkspaceName : '${abbrs.logAnalyticsWorkspace}${resourceToken}'
 
