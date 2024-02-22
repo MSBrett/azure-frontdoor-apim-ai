@@ -185,6 +185,24 @@ resource wafPolicy 'Microsoft.Network/FrontDoorWebApplicationFirewallPolicies@20
         }
       ]
     }
+    managedRules: {
+      managedRuleSets: [
+          {
+            ruleSetType: 'Microsoft_DefaultRuleSet'
+            ruleSetVersion: '2.1'
+            ruleSetAction: 'Block'
+            ruleGroupOverrides: []
+            exclusions: []
+          }
+          {
+            ruleSetType: 'Microsoft_BotManagerRuleSet'
+            ruleSetVersion: '1.0'
+            ruleSetAction: null
+            ruleGroupOverrides: []
+            exclusions: []
+          }
+      ]
+    }
   }
 }
 
