@@ -49,7 +49,7 @@ param frontDoorResourceGroupName string
 param frontDoorSubscriptionId string
 param dnsZoneName string 
 param text_embeddings_inference_container string = 'docker.io/snpsctg/tei-bge:latest'
-
+param enablePurgeProtection bool = true
 param apiPathSuffix string = '/${workloadName}/v1'
 
 var abbrs = loadJsonContent('./abbreviations.json')
@@ -127,6 +127,7 @@ module keyVault './core/key-vault-private.bicep' = {
     logAnalyticsWorkspaceId: logAnalyticsWorkspaceId
     privateEndpointSubnetId: virtualNetwork.outputs.serviceSubnetId
     virtualNetworkId: virtualNetwork.outputs.virtualNetworkId
+    enablePurgeProtection: enablePurgeProtection
     roleAssignments: [
       {
         principalId: managedIdentity.outputs.principalId
