@@ -124,7 +124,7 @@ resource pvtEndpointDnsGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneG
 
 resource keyVaultDiagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (logAnalyticsWorkspaceId != '') {
   scope: keyVault
-  name: 'sccDiagnosticSettings'
+  name: 'diagnosticSettings'
   properties: {
     workspaceId: logAnalyticsWorkspaceId
     logs: [

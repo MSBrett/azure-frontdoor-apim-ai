@@ -157,7 +157,7 @@ resource pvtEndpointDnsGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneG
 
 resource cognitiveServicesDiagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (logAnalyticsWorkspaceId != '') {
   scope: cognitiveServices
-  name: 'sccDiagnosticSettings'
+  name: 'diagnosticSettings'
   properties: {
     workspaceId: logAnalyticsWorkspaceId
     logs: [

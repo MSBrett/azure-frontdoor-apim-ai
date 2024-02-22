@@ -78,7 +78,7 @@ resource apiManagement 'Microsoft.ApiManagement/service@2023-05-01-preview' = {
 
 resource apiManagementDiagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (logAnalyticsWorkspaceId != '') {
   scope: apiManagement
-  name: 'sccDiagnosticSettings'
+  name: 'diagnosticSettings'
   properties: {
     workspaceId: logAnalyticsWorkspaceId
     logs: [

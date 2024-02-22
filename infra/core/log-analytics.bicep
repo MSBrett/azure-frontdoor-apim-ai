@@ -23,7 +23,7 @@ resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2021-06
 
 resource logAnalyticsWorkspacetDiagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
   scope: logAnalyticsWorkspace
-  name: 'sccDiagnosticSettings'
+  name: 'diagnosticSettings'
   properties: {
     workspaceId: logAnalyticsWorkspace.id
     logs: [

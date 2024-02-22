@@ -178,7 +178,7 @@ module openAI './core/cognitive-services.bicep' = {
         }
         sku: {
           name: 'Standard'
-          capacity: 1
+          capacity: 30
         }
       }
       {
@@ -190,7 +190,7 @@ module openAI './core/cognitive-services.bicep' = {
         }
         sku: {
           name: 'Standard'
-          capacity: 1
+          capacity: 30
         }
       }
     ]
