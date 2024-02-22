@@ -24,7 +24,7 @@ param skuName string = 'standard'
 param enableSoftDelete bool = true
 @description('Role assignments to create for the Key Vault.')
 param roleAssignments roleAssignmentInfo[] = []
-
+param logAnalyticsWorkspaceId string = ''
 var privateEndpointName = '${name}-ep'
 var privateDnsZoneName = 'privatelink.vaultcore.azure.net'
 var pvtEndpointDnsGroupName = '${privateEndpointName}/keyvault-endpoint-zone'
@@ -118,6 +118,20 @@ resource pvtEndpointDnsGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneG
   dependsOn: [
     privateEndpoint
   ]
+}
+
+resource keyVaultDiagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (logAnalyticsWorkspaceId != '') {
+  scope: keyVault
+  name: 'sccDiagnosticSettings'
+  properties: {
+    workspaceId: logAnalyticsWorkspaceId
+    logs: [
+      {
+        categoryGroup: 'allLogs'
+        enabled: true
+      }
+    ]
+  }
 }
 
 @description('ID for the deployed Key Vault resource.')

@@ -54,7 +54,7 @@ param deployments array = []
 param publicNetworkAccess string = 'Enabled'
 @description('Properties to store in a Key Vault.')
 param keyVaultSecrets keyVaultSecretsInfo?
-
+param logAnalyticsWorkspaceId string = ''
 var privateEndpointName = '${name}-ep}'
 var privateDnsZoneName = 'privatelink.openai.azure.com'
 var pvtEndpointDnsGroupName = '${privateEndpointName}/openai-endpoint-zone'
@@ -153,6 +153,20 @@ resource pvtEndpointDnsGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneG
   dependsOn: [
     privateEndpoint
   ]
+}
+
+resource cognitiveServicesDiagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (logAnalyticsWorkspaceId != '') {
+  scope: cognitiveServices
+  name: 'sccDiagnosticSettings'
+  properties: {
+    workspaceId: logAnalyticsWorkspaceId
+    logs: [
+      {
+        categoryGroup: 'allLogs'
+        enabled: true
+      }
+    ]
+  }
 }
 
 @description('ID for the deployed Cognitive Services resource.')

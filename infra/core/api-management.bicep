@@ -8,7 +8,7 @@ param location string = resourceGroup().location
 param tags object = {}
 @description('ID for the Managed Identity associated with the API Management resource.')
 param apiManagementIdentityId string
-
+param logAnalyticsWorkspaceId string = ''
 param publicIpAddressId string
 
 type skuInfo = {
@@ -77,6 +77,26 @@ resource apiManagement 'Microsoft.ApiManagement/service@2023-03-01-preview' = {
       'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Backend.Protocols.Ssl30': 'false'
       'Microsoft.WindowsAzure.ApiManagement.Gateway.Protocols.Server.Http2': 'true'
     }
+  }
+}
+
+resource apiManagementDiagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (logAnalyticsWorkspaceId != '') {
+  scope: apiManagement
+  name: 'sccDiagnosticSettings'
+  properties: {
+    workspaceId: logAnalyticsWorkspaceId
+    logs: [
+      {
+        category: 'GatewayLogs'
+        enabled: true
+      }
+    ]
+    metrics: [
+      {
+        category: 'AllMetrics'
+        enabled: true
+      }
+    ]
   }
 }
 

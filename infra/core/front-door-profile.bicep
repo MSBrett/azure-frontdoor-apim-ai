@@ -28,23 +28,23 @@ resource frontDoorProfile 'Microsoft.Cdn/profiles@2023-07-01-preview' = {
   }
 }
 
-resource logAnalyticsWorkspaceDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
+resource zone 'Microsoft.Network/dnsZones@2018-05-01' = {
+  name: dnsZoneName
+  location: 'global'
+}
+
+resource frontDoorProfileDiagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (logAnalyticsWorkspaceId != '') {
   scope: frontDoorProfile
-  name: 'diagnosticSettings'
+  name: 'sccDiagnosticSettings'
   properties: {
     workspaceId: logAnalyticsWorkspaceId
     logs: [
       {
-        category: 'FrontDoorWebApplicationFirewallLog'
+        categoryGroup: 'allLogs'
         enabled: true
       }
     ]
   }
-}
-
-resource zone 'Microsoft.Network/dnsZones@2018-05-01' = {
-  name: dnsZoneName
-  location: 'global'
 }
 
 output id string = frontDoorProfile.id

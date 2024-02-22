@@ -78,6 +78,7 @@ module virtualNetwork 'core/virtual-network.bicep' = {
     bastionHostName: '${abbrs.virtualNetwork}${resourceToken}'
     publicIpName: '${abbrs.publicIPAddress}${resourceToken}'
     virtualNetworkName: '${abbrs.virtualNetwork}${resourceToken}'
+    logAnalyticsWorkspaceId: logAnalyticsWorkspaceId
   }
 }
 
@@ -123,6 +124,7 @@ module keyVault './core/key-vault-private.bicep' = {
     name: !empty(keyVaultName) ? keyVaultName : '${abbrs.keyVault}${resourceToken}'
     location: location
     tags: union(tags, {})
+    logAnalyticsWorkspaceId: logAnalyticsWorkspaceId
     privateEndpointSubnetId: virtualNetwork.outputs.serviceSubnetId
     virtualNetworkId: virtualNetwork.outputs.virtualNetworkId
     roleAssignments: [
@@ -158,6 +160,7 @@ module openAI './core/cognitive-services.bicep' = {
     name: !empty(openAIName) ? openAIName! : '${abbrs.cognitiveServices}${resourceToken}-aoai'
     location: location
     tags: union(tags, {})
+    logAnalyticsWorkspaceId: logAnalyticsWorkspaceId
     publicNetworkAccess: 'Disabled'
     privateEndpointSubnetId: virtualNetwork.outputs.serviceSubnetId
     virtualNetworkId: virtualNetwork.outputs.virtualNetworkId
@@ -208,6 +211,7 @@ module containerAppEnv 'core/container-app-environment.bicep' = {
   scope: resourceGroup
   params: {
     location: location
+    logAnalyticsWorkspaceId: logAnalyticsWorkspaceId
     containerAppEnvSubnetId: virtualNetwork.outputs.containerAppEnvSubnetId
     containerAppEnvName: '${abbrs.containerAppsEnvironment}${resourceToken}'
   }
@@ -254,8 +258,7 @@ module apiManagement './core/api-management.bicep' = {
     publisherName: apiManagementPublisherName
     apiManagementIdentityId: managedIdentity.outputs.id
     apimSubnetId: virtualNetwork.outputs.apimSubnetId
-    // keyvaultid:  '${keyVault.outputs.uri}secrets/${certificate.outputs.certificateName}' // '${keyVault.outputs.name}.privatelink.vaultcore.azure.net/secrets/${certificate.outputs.certificateName}'
-    // dnsName: certificate.outputs.dnsname
+    logAnalyticsWorkspaceId: logAnalyticsWorkspaceId
     publicIpAddressId: virtualNetwork.outputs.apimPublicIpId
   }
 }

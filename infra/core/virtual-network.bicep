@@ -15,6 +15,8 @@ param virtualNetworkName string
 param bastionHostName string
 param publicIpName string
 
+param logAnalyticsWorkspaceId string = ''
+
 resource virtualNetwork 'Microsoft.Network/virtualNetworks@2023-02-01' = {
   name: virtualNetworkName
   location: location
@@ -82,6 +84,23 @@ resource virtualNetwork 'Microsoft.Network/virtualNetworks@2023-02-01' = {
         }
       }
     ]
+  }
+}
+
+resource bastionPublicIp 'Microsoft.Network/publicIPAddresses@2023-04-01' = if (deployBastion) {
+  name: 'bas-${publicIpName}'
+  location: location
+  tags: tags
+  sku: {
+    name: 'Standard'
+  }
+  properties: {
+    publicIPAddressVersion: 'IPv4'
+    publicIPAllocationMethod: 'Static'
+    idleTimeoutInMinutes: 4
+    dnsSettings: {
+      domainNameLabel: 'bas-${publicIpName}'
+    }
   }
 }
 
@@ -278,7 +297,7 @@ resource containerAppNsg 'Microsoft.Network/networkSecurityGroups@2020-06-01' = 
   }
 }
 
-resource apimNsg 'Microsoft.Network/networkSecurityGroups@2020-06-01' =  if (deployBastion) {
+resource apimNsg 'Microsoft.Network/networkSecurityGroups@2020-06-01' = {
   name: 'apiManagement-nsg'
   location: location
   properties: {
@@ -541,23 +560,6 @@ resource apimNsg 'Microsoft.Network/networkSecurityGroups@2020-06-01' =  if (dep
   }
 }
 
-resource bastionPublicIp 'Microsoft.Network/publicIPAddresses@2023-04-01' = if (deployBastion) {
-  name: 'bas-${publicIpName}'
-  location: location
-  tags: tags
-  sku: {
-    name: 'Standard'
-  }
-  properties: {
-    publicIPAddressVersion: 'IPv4'
-    publicIPAllocationMethod: 'Static'
-    idleTimeoutInMinutes: 4
-    dnsSettings: {
-      domainNameLabel: 'bas-${publicIpName}'
-    }
-  }
-}
-
 resource apimPublicIp 'Microsoft.Network/publicIPAddresses@2023-04-01' = {
   name: 'apim-${publicIpName}'
   location: location
@@ -574,6 +576,123 @@ resource apimPublicIp 'Microsoft.Network/publicIPAddresses@2023-04-01' = {
     }
   }
 }
+
+resource apimPublicIpDiagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (logAnalyticsWorkspaceId != '') {
+  scope: apimPublicIp
+  name: 'sccDiagnosticSettings'
+  properties: {
+    workspaceId: logAnalyticsWorkspaceId
+    logs: [
+      {
+        categoryGroup: 'allLogs'
+        enabled: true
+      }
+    ]
+  }
+}
+
+resource bastionPublicIpDiagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (logAnalyticsWorkspaceId != '' && deployBastion) {
+  scope: bastionPublicIp
+  name: 'sccDiagnosticSettings'
+  properties: {
+    workspaceId: logAnalyticsWorkspaceId
+    logs: [
+      {
+        categoryGroup: 'allLogs'
+        enabled: true
+      }
+    ]
+  }
+}
+
+resource virtualNetworkDiagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (logAnalyticsWorkspaceId != '') {
+  scope: virtualNetwork
+  name: 'sccDiagnosticSettings'
+  properties: {
+    workspaceId: logAnalyticsWorkspaceId
+    logs: [
+      {
+        categoryGroup: 'allLogs'
+        enabled: true
+      }
+    ]
+  }
+}
+
+resource apimNsgDiagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (logAnalyticsWorkspaceId != '') {
+  scope: apimNsg
+  name: 'sccDiagnosticSettings'
+  properties: {
+    workspaceId: logAnalyticsWorkspaceId
+    logs: [
+      {
+        category: 'NetworkSecurityGroupEvent'
+        enabled: true
+      }
+      {
+        category: 'NetworkSecurityGroupRuleCounter'
+        enabled: true
+      }
+    ]
+  }
+}
+
+resource containerAppNsgDiagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (logAnalyticsWorkspaceId != '') {
+  scope: containerAppNsg
+  name: 'sccDiagnosticSettings'
+  properties: {
+    workspaceId: logAnalyticsWorkspaceId
+    logs: [
+      {
+        category: 'NetworkSecurityGroupEvent'
+        enabled: true
+      }
+      {
+        category: 'NetworkSecurityGroupRuleCounter'
+        enabled: true
+      }
+    ]
+  }
+}
+
+resource serviceNsgDiagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (logAnalyticsWorkspaceId != '') {
+  scope: serviceNsg
+  name: 'sccDiagnosticSettings'
+  properties: {
+    workspaceId: logAnalyticsWorkspaceId
+    logs: [
+      {
+        category: 'NetworkSecurityGroupEvent'
+        enabled: true
+      }
+      {
+        category: 'NetworkSecurityGroupRuleCounter'
+        enabled: true
+      }
+    ]
+  }
+}
+
+resource bastionNsgDiagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (logAnalyticsWorkspaceId != '') {
+  scope: bastionNsg
+  name: 'sccDiagnosticSettings'
+  properties: {
+    workspaceId: logAnalyticsWorkspaceId
+    logs: [
+      {
+        category: 'NetworkSecurityGroupEvent'
+        enabled: true
+      }
+      {
+        category: 'NetworkSecurityGroupRuleCounter'
+        enabled: true
+      }
+    ]
+  }
+}
+
+
+
 
 output virtualNetworkName string = virtualNetwork.name
 output virtualNetworkId string = virtualNetwork.id
