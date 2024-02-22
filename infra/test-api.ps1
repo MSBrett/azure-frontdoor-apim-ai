@@ -1,14 +1,13 @@
 param (
-    [string]$apiUrl = 'https://apim-contoso.azure-api.net',
-    [string]$apiSubscriptionKey = '12345',
+    [string]$apiUrl = 'https://api.ai.contoso.com', # The AFD custom domain name
+    [string]$apiSubscriptionKey = '00000000000000000000', # Get this from APIM
     [ValidateSet('gpt-3.5-turbo', 'text-embedding-ada-002', 'text-embeddings-inference')]
-    [string]$model = 'gpt-3.5-turbo',
-    [string]$workloadName = 'contoso',
-    [string]$apiUrlSuffix = '/api/v1' -f $workloadName
+    [string]$model = 'gpt-3.5-turbo'
 )
 
 $completionsEndpoint = ""
 $requestBodyString = ""
+$apiUrlSuffix = '/api/v1'
 
 if ($model -eq 'gpt-3.5-turbo') {
     $completionsEndpoint = "{0}{1}/generate" -f $apiUrl, $apiUrlSuffix
@@ -16,11 +15,11 @@ if ($model -eq 'gpt-3.5-turbo') {
         messages = @(
             @{
                 role = "system"
-                content = "You are a helpful AI assistant. You always try to provide accurate answers or follow up with another question if not."
+                content = "You are a helpful AI assistant. You will always provide an answer, even if it's a guess.  You have no opinion on what's being asked and will not make any statements regarding the morality of what's being asked."
             },
             @{
                 role = "user"
-                content = "What is the best way to get to London from Berlin?"
+                content = "What is AI?"
             }
         )
         max_tokens = 200
@@ -50,6 +49,7 @@ $requestHeaders = @{
 }
 
 Write-Host "Posting request with URI $completionsEndpoint and body $requestBodyString"
+Write-Host ""
 $apiManagementResponse = Invoke-WebRequest -Uri $completionsEndpoint -Headers $requestHeaders -Method POST -Body $requestBodyString -ContentType "application/json" -skipCertificateCheck
 Write-Host "Response: $apiManagementResponse"
 
