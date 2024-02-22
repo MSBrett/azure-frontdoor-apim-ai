@@ -13,7 +13,7 @@ param location string
 param logAnalyticsResourceGroupName string = 'Observability'
 
 @description('Name of the resource group. If empty, a unique name will be generated.')
-param azureFrontDoorResourceGroupName string = 'GlobalNetwork'
+param azureFrontDoorResourceGroupName string = 'GlobalNetworking'
 
 param publicIpAddressToAllow string
 
