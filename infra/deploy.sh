@@ -1,3 +1,2 @@
 #!/bin/sh
-az account set --subscription "id"
-az deployment sub create --location eastus --template-file ./main.bicep --parameters ./main.bicepparam
+ticks=$(date +%s) && az deployment sub create --location eastus --template-file ./main.bicep --parameters ./prod-digital.bicepparam --name "digital-$ticks"
