@@ -57,7 +57,7 @@ module frontDoorProfile './core/front-door-profile.bicep' = {
   params: {
     frontDoorProfileName: '${abbrs.frontDoorProfile}${resourceToken}'
     tags: union(tags, {})
-    frontDoorSkuName: 'Standard_AzureFrontDoor'
+    frontDoorSkuName: 'Premium_AzureFrontDoor'
     logAnalyticsWorkspaceId: logAnalyticsWorkspace.outputs.id
     dnsZoneName: dnsZoneName
   }
