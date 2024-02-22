@@ -349,7 +349,7 @@ module frontDoor './core/front-door-config.bicep' = {
     frontDoorConfigName: '${safeWorkloadName}${resourceToken}'
     frontDoorProfileName : frontDoorProfileName
     apiEndpointHostName: apiManagement.outputs.gatewayHostName
-    frontDoorSkuName: 'Standard_AzureFrontDoor'
+    frontDoorSkuName: 'Premium_AzureFrontDoor'
     ipAddressRangesToAllow: ipAddressRangesToAllow
     pathToMatch: '${apiPathSuffix}/*'
     azureDnsZone: dnsZoneName
