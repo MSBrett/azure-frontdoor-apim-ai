@@ -19,7 +19,7 @@ param wafMode string = 'Prevention'
 param ipAddressRangesToAllow array
 
 
-resource wafPolicy 'Microsoft.Network/frontDoorWebApplicationFirewallPolicies@2020-11-01' = {
+resource wafPolicy 'Microsoft.Network/FrontDoorWebApplicationFirewallPolicies@2022-05-01' = {
   name: frontDoorConfigName
   location: 'global'
   sku: {

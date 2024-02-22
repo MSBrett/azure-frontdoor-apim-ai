@@ -52,13 +52,6 @@ resource apiManagement 'Microsoft.ApiManagement/service@2023-03-01-preview' = {
       subnetResourceId: apimSubnetId
     }
     hostnameConfigurations: [
-      /*{
-        type: 'Proxy'
-        hostName: dnsName
-        keyVaultId: keyvaultid
-        identityClientId: apiManagementIdentityClientId
-        defaultSslBinding: true
-      }*/
     ]
     customProperties: {
       'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Ciphers.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA': 'false'
@@ -76,6 +69,9 @@ resource apiManagement 'Microsoft.ApiManagement/service@2023-03-01-preview' = {
       'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Backend.Protocols.Tls11': 'false'
       'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Backend.Protocols.Ssl30': 'false'
       'Microsoft.WindowsAzure.ApiManagement.Gateway.Protocols.Server.Http2': 'true'
+    }
+    apiVersionConstraint: {
+      minApiVersion: '2021-08-01'
     }
   }
 }

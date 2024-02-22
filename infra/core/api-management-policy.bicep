@@ -13,7 +13,7 @@ param format string
 @description('Value of the Policy associated with the API Management resource.')
 param value string
 
-resource apiManagement 'Microsoft.ApiManagement/service@2023-03-01-preview' existing = {
+resource apiManagement 'Microsoft.ApiManagement/service@2023-05-01-preview' existing = {
   name: apiManagementName
 
   resource api 'apis@2023-03-01-preview' existing = {

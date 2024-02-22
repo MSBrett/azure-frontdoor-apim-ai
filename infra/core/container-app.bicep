@@ -50,7 +50,7 @@ param minReplicas int = 1
 @maxValue(25)
 param maxReplicas int = 3
 
-resource containerApp 'Microsoft.App/containerApps@2022-03-01' = {
+resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
   name: containerAppName
   location: location
   properties: {

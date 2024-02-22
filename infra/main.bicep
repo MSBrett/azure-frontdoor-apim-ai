@@ -62,7 +62,7 @@ var rewriteUrl_generate = '/openai/deployments/gpt-35-turbo/chat/completions?api
 var rewriteUrl_embed = '/openai/deployments/text-embedding-ada-002/embeddings?api-version=2023-07-01-preview'
 var rewriteUrl_rerank = '/rerank'
 
-resource resourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' = {
+resource resourceGroup 'Microsoft.Resources/resourceGroups@2022-09-01' = {
   name: !empty(resourceGroupName) ? resourceGroupName : '${abbrs.resourceGroup}${workloadName}'
   location: location
   tags: union(tags, {})
@@ -336,7 +336,7 @@ module apiPolicy_rerank './core/api-management-operation-policy.bicep' = {
   }
 }
 
-resource frontDoorResourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' existing = {
+resource frontDoorResourceGroup 'Microsoft.Resources/resourceGroups@2022-09-01' existing = {
   name: frontDoorResourceGroupName
   scope : subscription(frontDoorSubscriptionId)
 }

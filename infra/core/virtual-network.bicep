@@ -130,7 +130,7 @@ resource bastionHost 'Microsoft.Network/bastionHosts@2023-04-01' = if (deployBas
   }
 }
 
-resource bastionNsg 'Microsoft.Network/networkSecurityGroups@2022-07-01' = {
+resource bastionNsg 'Microsoft.Network/networkSecurityGroups@2023-04-01' = {
   name: 'AzureBastionSubnet-nsg'
   location: location
   properties: {
@@ -281,7 +281,7 @@ resource bastionNsg 'Microsoft.Network/networkSecurityGroups@2022-07-01' = {
   }
 }
 
-resource serviceNsg 'Microsoft.Network/networkSecurityGroups@2020-06-01' = {
+resource serviceNsg 'Microsoft.Network/networkSecurityGroups@2023-04-01' = {
   name: 'services-nsg'
   location: location
   properties: {
@@ -289,7 +289,7 @@ resource serviceNsg 'Microsoft.Network/networkSecurityGroups@2020-06-01' = {
   }
 }
 
-resource containerAppNsg 'Microsoft.Network/networkSecurityGroups@2020-06-01' = {
+resource containerAppNsg 'Microsoft.Network/networkSecurityGroups@2023-04-01' = {
   name: 'ContainerApps-nsg'
   location: location
   properties: {
@@ -297,7 +297,7 @@ resource containerAppNsg 'Microsoft.Network/networkSecurityGroups@2020-06-01' = 
   }
 }
 
-resource apimNsg 'Microsoft.Network/networkSecurityGroups@2020-06-01' = {
+resource apimNsg 'Microsoft.Network/networkSecurityGroups@2023-04-01' = {
   name: 'apiManagement-nsg'
   location: location
   properties: {

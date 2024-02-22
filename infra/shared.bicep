@@ -27,13 +27,13 @@ var roles = loadJsonContent('./roles.json')
 var resourceToken = toLower(uniqueString(subscription().id, logAnalyticsResourceGroupName, location))
 var workspaceName = !empty(logAnalyticsWorkspaceName) ? logAnalyticsWorkspaceName : '${abbrs.logAnalyticsWorkspace}${resourceToken}'
 
-resource logAnalyticsResourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' = {
+resource logAnalyticsResourceGroup 'Microsoft.Resources/resourceGroups@2022-09-01' = {
   name: logAnalyticsResourceGroupName
   location: location
   tags: union(tags, {})
 }
 
-resource azureFrontDoorResourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' = {
+resource azureFrontDoorResourceGroup 'Microsoft.Resources/resourceGroups@2022-09-01' = {
   name: azureFrontDoorResourceGroupName
   location: location
   tags: union(tags, {})

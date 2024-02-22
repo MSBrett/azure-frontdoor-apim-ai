@@ -99,7 +99,7 @@ module keyVaultSecret './key-vault-secret.bicep' = [for secret in keyVaultSecret
   }
 }]
 
-resource privateEndpoint 'Microsoft.Network/privateEndpoints@2021-05-01' = {
+resource privateEndpoint 'Microsoft.Network/privateEndpoints@2023-04-01' = {
   name: privateEndpointName
   location: location
   properties: {
@@ -138,7 +138,7 @@ resource privateDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLin
   }
 }
 
-resource pvtEndpointDnsGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2021-05-01' = {
+resource pvtEndpointDnsGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2023-04-01' = {
   name: pvtEndpointDnsGroupName
   properties: {
     privateDnsZoneConfigs: [

@@ -8,7 +8,7 @@ param location string
 param containerAppEnvSubnetId string
 param logAnalyticsWorkspaceId string = ''
 
-resource containerAppEnv 'Microsoft.App/managedEnvironments@2022-03-01' = {
+resource containerAppEnv 'Microsoft.App/managedEnvironments@2023-05-01' = {
   name: containerAppEnvName
   location: location
   properties: {
@@ -32,7 +32,6 @@ resource containerAppEnvDiagnosticSettings 'Microsoft.Insights/diagnosticSetting
     ]
   }
 }
-
 
 output id string = containerAppEnv.id
 output name string = containerAppEnv.name
