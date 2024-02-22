@@ -22,6 +22,7 @@ type roleAssignmentInfo = {
 param skuName string = 'standard'
 @description('Whether soft deletion is enabled. Defaults to true.')
 param enableSoftDelete bool = true
+param enablePurgeProtection bool = true
 @description('Role assignments to create for the Key Vault.')
 param roleAssignments roleAssignmentInfo[] = []
 param logAnalyticsWorkspaceId string = ''
@@ -40,7 +41,7 @@ resource keyVault 'Microsoft.KeyVault/vaults@2022-07-01' = {
         }
         tenantId: subscription().tenantId
         networkAcls: {
-            defaultAction: 'allow' // so APIM can access it
+            defaultAction: 'Deny' // so APIM can access it
             bypass: 'AzureServices'
             ipRules: [
               {
@@ -51,6 +52,7 @@ resource keyVault 'Microsoft.KeyVault/vaults@2022-07-01' = {
         enableSoftDelete: enableSoftDelete
         enabledForTemplateDeployment: true
         enableRbacAuthorization: true
+        enablePurgeProtection: enablePurgeProtection
     }
 }
 
