@@ -35,7 +35,7 @@ resource zone 'Microsoft.Network/dnsZones@2018-05-01' = {
 
 resource frontDoorProfileDiagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (logAnalyticsWorkspaceId != '') {
   scope: frontDoorProfile
-  name: 'diagnosticSettings'
+  name: 'diagnosticSettingsConfig'
   properties: {
     workspaceId: logAnalyticsWorkspaceId
     logs: [

@@ -21,7 +21,7 @@ resource containerAppEnv 'Microsoft.App/managedEnvironments@2023-05-01' = {
 
 resource containerAppEnvDiagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (logAnalyticsWorkspaceId != '') {
   scope: containerAppEnv
-  name: 'diagnosticSettings'
+  name: 'diagnosticSettingsConfig'
   properties: {
     workspaceId: logAnalyticsWorkspaceId
     logs: [

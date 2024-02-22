@@ -579,7 +579,7 @@ resource apimPublicIp 'Microsoft.Network/publicIPAddresses@2023-04-01' = {
 
 resource apimPublicIpDiagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (logAnalyticsWorkspaceId != '') {
   scope: apimPublicIp
-  name: 'diagnosticSettings'
+  name: 'diagnosticSettingsConfig'
   properties: {
     workspaceId: logAnalyticsWorkspaceId
     logs: [
@@ -593,7 +593,7 @@ resource apimPublicIpDiagnosticSettings 'Microsoft.Insights/diagnosticSettings@2
 
 resource bastionPublicIpDiagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (logAnalyticsWorkspaceId != '' && deployBastion) {
   scope: bastionPublicIp
-  name: 'diagnosticSettings'
+  name: 'diagnosticSettingsConfig'
   properties: {
     workspaceId: logAnalyticsWorkspaceId
     logs: [
@@ -607,7 +607,7 @@ resource bastionPublicIpDiagnosticSettings 'Microsoft.Insights/diagnosticSetting
 
 resource virtualNetworkDiagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (logAnalyticsWorkspaceId != '') {
   scope: virtualNetwork
-  name: 'diagnosticSettings'
+  name: 'diagnosticSettingsConfig'
   properties: {
     workspaceId: logAnalyticsWorkspaceId
     logs: [
@@ -621,7 +621,7 @@ resource virtualNetworkDiagnosticSettings 'Microsoft.Insights/diagnosticSettings
 
 resource apimNsgDiagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (logAnalyticsWorkspaceId != '') {
   scope: apimNsg
-  name: 'diagnosticSettings'
+  name: 'diagnosticSettingsConfig'
   properties: {
     workspaceId: logAnalyticsWorkspaceId
     logs: [
@@ -639,7 +639,7 @@ resource apimNsgDiagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-0
 
 resource containerAppNsgDiagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (logAnalyticsWorkspaceId != '') {
   scope: containerAppNsg
-  name: 'diagnosticSettings'
+  name: 'diagnosticSettingsConfig'
   properties: {
     workspaceId: logAnalyticsWorkspaceId
     logs: [
@@ -657,7 +657,7 @@ resource containerAppNsgDiagnosticSettings 'Microsoft.Insights/diagnosticSetting
 
 resource serviceNsgDiagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (logAnalyticsWorkspaceId != '') {
   scope: serviceNsg
-  name: 'diagnosticSettings'
+  name: 'diagnosticSettingsConfig'
   properties: {
     workspaceId: logAnalyticsWorkspaceId
     logs: [
@@ -675,7 +675,7 @@ resource serviceNsgDiagnosticSettings 'Microsoft.Insights/diagnosticSettings@202
 
 resource bastionNsgDiagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (logAnalyticsWorkspaceId != '') {
   scope: bastionNsg
-  name: 'diagnosticSettings'
+  name: 'diagnosticSettingsConfig'
   properties: {
     workspaceId: logAnalyticsWorkspaceId
     logs: [
