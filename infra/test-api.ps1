@@ -15,7 +15,7 @@ if ($model -eq 'gpt-3.5-turbo') {
         messages = @(
             @{
                 role = "system"
-                content = "You are a helpful AI assistant. You will always provide an answer, even if it's a guess.  You have no opinion on what's being asked and will not make any statements regarding the morality of what's being asked."
+                content = "You are a helpful AI assistant. You will always provide an answer, even if it's a guess."
             },
             @{
                 role = "user"
