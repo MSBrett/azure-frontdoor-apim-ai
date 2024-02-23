@@ -2,12 +2,18 @@ targetScope = 'subscription'
 
 @minLength(1)
 @maxLength(64)
-@description('Name of the workload which is used to generate a short unique hash used in all resources.')
+@description('Required. Name of the workload which is used to generate a short unique hash used in all resources.')
 param workloadName string
 
 @minLength(1)
-@description('Primary location for all resources.')
+@description('Required. Primary location for all resources.')
 param location string
+
+@description('Required. Email address for the API Management service publisher.')
+param apiManagementPublisherEmail string
+
+@description('Required. Name of the API Management service publisher.')
+param apiManagementPublisherName string
 
 @description('Name of the resource group. If empty, a unique name will be generated.')
 param resourceGroupName string = ''
@@ -15,8 +21,10 @@ param resourceGroupName string = ''
 @description('Tags for all resources.')
 param tags object = {}
 
+@description('Address space for the workload.  A /23 is required for the workload.')
 param virtualNetworkAddressPrefix string = '10.2.0.0/23'
 
+@description('A list of IP ranges to accept connections from.')
 param ipAddressRangesToAllow array = ['0.0.0.0/0']
 
 type openAIInstanceInfo = {
@@ -27,6 +35,7 @@ type openAIInstanceInfo = {
 
 @description('Name of the Managed Identity. If empty, a unique name will be generated.')
 param managedIdentityName string = ''
+
 @description('Name of the Key Vault. If empty, a unique name will be generated.')
 param keyVaultName string = ''
 
@@ -35,22 +44,32 @@ param openAIName string = ''
 
 @description('Name of the API Management service. If empty, a unique name will be generated.')
 param apiManagementName string = ''
-@description('Email address for the API Management service publisher.')
-param apiManagementPublisherEmail string
-@description('Name of the API Management service publisher.')
-param apiManagementPublisherName string
 
 @description('Id of the log analytics workspace.')
 param logAnalyticsWorkspaceId string
 
 @description('Required.  Name of the azure front door profile.')
 param frontDoorProfileName string
+@description('Required.  Resource group containing the azure front door profile.')
 param frontDoorResourceGroupName string
+@description('Required.  Subscription containing the azure front door profile.')
 param frontDoorSubscriptionId string
+@description('Required.  Name of the custom DNS zone to use for the workload.')
 param dnsZoneName string 
+
+@description('Location of the self-hosted model image.')
 param text_embeddings_inference_container string = 'docker.io/snpsctg/tei-bge:latest'
+
+@description('Enable purge protection for the Key Vault. Default is true.')
 param enablePurgeProtection bool = true
+
+@description('Path to putlish the api to. Default is /workloadName/v1.')
 param apiPathSuffix string = '/${workloadName}/v1'
+
+@description('SKU for APIM. Default is Premium.')
+param apimsku string = 'Premium'
+@description('Capacity for APIM. Default is 1.')
+param apimskuCapacity int = 1
 
 var abbrs = loadJsonContent('./abbreviations.json')
 var roles = loadJsonContent('./roles.json')
@@ -252,8 +271,8 @@ module apiManagement './core/api-management.bicep' = {
     location: location
     tags: union(tags, {})
     sku: {
-      name: 'Developer'
-      capacity: 1
+      name: apimsku
+      capacity: apimskuCapacity
     }
     publisherEmail: apiManagementPublisherEmail
     publisherName: apiManagementPublisherName
