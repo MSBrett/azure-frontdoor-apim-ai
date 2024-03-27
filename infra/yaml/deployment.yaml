@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gpu-based-deployment
+spec:
+  selector:
+    matchLabels:
+      app: gpu-app
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: gpu-app
+    spec:
+      containers:
+      - name: gpu-container
+        image: docker.io/snpsctg/tei-ibmre-gpu:latest
+        resources:
+          limits:
+            cpu: "18"
+          requests:
+            cpu: "18"
+      nodeSelector:
+        gpu-node: "true"
+      tolerations:
+      - key: kubernetes.azure.com/scalesetpriority
+        operator: Exists
+        effect: NoSchedule
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gpu-app-service
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+spec:
+  selector:
+    app: gpu-app
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+  type: LoadBalancer
+  loadBalancerIP: 10.4.2.111
