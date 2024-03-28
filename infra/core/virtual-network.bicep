@@ -74,15 +74,6 @@ resource virtualNetwork 'Microsoft.Network/virtualNetworks@2023-02-01' = {
           }
         }
       }
-      {
-        name: 'ContainerApps'
-        properties: {
-          addressPrefix: cidrSubnet(virtualNetworkAddressPrefix, 23, 1)
-          networkSecurityGroup: {
-            id: containerAppNsg.id
-          }
-        }
-      }
     ]
   }
 }
@@ -283,14 +274,6 @@ resource bastionNsg 'Microsoft.Network/networkSecurityGroups@2023-04-01' = {
 
 resource serviceNsg 'Microsoft.Network/networkSecurityGroups@2023-04-01' = {
   name: 'services-nsg'
-  location: location
-  properties: {
-    securityRules: [ ]
-  }
-}
-
-resource containerAppNsg 'Microsoft.Network/networkSecurityGroups@2023-04-01' = {
-  name: 'ContainerApps-nsg'
   location: location
   properties: {
     securityRules: [ ]
@@ -637,24 +620,6 @@ resource apimNsgDiagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-0
   }
 }
 
-resource containerAppNsgDiagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (logAnalyticsWorkspaceId != '') {
-  scope: containerAppNsg
-  name: 'diagnosticSettingsConfig'
-  properties: {
-    workspaceId: logAnalyticsWorkspaceId
-    logs: [
-      {
-        category: 'NetworkSecurityGroupEvent'
-        enabled: true
-      }
-      {
-        category: 'NetworkSecurityGroupRuleCounter'
-        enabled: true
-      }
-    ]
-  }
-}
-
 resource serviceNsgDiagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (logAnalyticsWorkspaceId != '') {
   scope: serviceNsg
   name: 'diagnosticSettingsConfig'
@@ -691,14 +656,22 @@ resource bastionNsgDiagnosticSettings 'Microsoft.Insights/diagnosticSettings@202
   }
 }
 
-
-
-
 output virtualNetworkName string = virtualNetwork.name
 output virtualNetworkId string = virtualNetwork.id
+output virtualNetworkAddressPrefix string = virtualNetwork.properties.addressSpace.addressPrefixes[0]
+
+output serviceSubnetName string = virtualNetwork.properties.subnets[0].name
 output serviceSubnetId string = virtualNetwork.properties.subnets[0].id
+output serviceSubnetAddressPrefix string = virtualNetwork.properties.subnets[0].properties.addressPrefix
+
+output apimSubnetName string = virtualNetwork.properties.subnets[1].name
 output apimSubnetId string = virtualNetwork.properties.subnets[1].id
-output containerAppEnvSubnetId string = virtualNetwork.properties.subnets[3].id
+output apimSubnetAddressPrefix string = virtualNetwork.properties.subnets[1].properties.addressPrefix
+
+output bastionSubnetName string = virtualNetwork.properties.subnets[2].name
+output bastionSubnetId string = virtualNetwork.properties.subnets[2].id
+output bastionSubnetAddressPrefix string = virtualNetwork.properties.subnets[2].properties.addressPrefix
+
 output apimPublicIpName string = apimPublicIp.name
 output apimPublicIpId string = apimPublicIp.id
 output apimPublicIpAddress string = apimPublicIp.properties.ipAddress
