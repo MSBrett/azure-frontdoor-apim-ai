@@ -61,8 +61,6 @@ param dnsZoneName string = 'ai.contoso.com'
 @description('Enable purge protection for the Key Vault. Default is true.')
 param enablePurgeProtection bool = false
 
-param deployJumpBox bool = false
-
 @description('Path to putlish the api to. Default is /workloadName/v1.')
 param apiPathSuffix string = '/api/v1'
 
@@ -291,19 +289,6 @@ module openAI './core/cognitive-services.bicep' = {
         }
       ]
     }
-  }
-}
-
-module jumpbox 'core/virtual-machine.bicep' = if (deployJumpBox) {
-  name: '${abbrs.virtualMachine}${resourceToken}'
-  scope: resourceGroup
-  params: {
-    location: location
-    subnetId: virtualNetwork.outputs.serviceSubnetId
-    vmName: '${abbrs.virtualMachine}${resourceToken}'
-    vmSize: 'Standard_D2s_v4'
-    adminUsername: adminUsername
-    publicKey: loadTextContent('../../../.ssh/id_rsa.pub')
   }
 }
 
