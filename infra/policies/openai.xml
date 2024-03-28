@@ -1,9 +1,13 @@
 <policies>
     <inbound>
+        <check-header name="X-Azure-FDID" failed-check-httpcode="403" failed-check-error-message="Invalid request." ignore-case="false">
+        <value><FRONTDOORID></value>
+        </check-header>
         <set-header name="api-key" exists-action="override">
             <value>{{OPENAI-API-KEY}}</value>
         </set-header>
-        <rewrite-uri template="@{return context.Request.OriginalUrl.Path;}" />
+        <rewrite-uri template="<REWRITEURL>" />
+        <set-backend-service base-url="<SERVICEURL>" />
         <base />
     </inbound>
     <backend>
