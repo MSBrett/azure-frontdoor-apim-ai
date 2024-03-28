@@ -20,9 +20,9 @@ type roleAssignmentInfo = {
     'premium'
 ])
 param skuName string = 'standard'
-@description('Whether soft deletion is enabled. Defaults to true.')
-param enableSoftDelete bool = true
-param enablePurgeProtection bool = true
+@description('Whether soft deletion is enabled. Defaults to false.')
+param enableSoftDelete bool = false
+param enablePurgeProtection bool = false
 @description('Role assignments to create for the Key Vault.')
 param roleAssignments roleAssignmentInfo[] = []
 param logAnalyticsWorkspaceId string = ''
@@ -49,10 +49,10 @@ resource keyVault 'Microsoft.KeyVault/vaults@2022-07-01' = {
               }
             ]
         }
-        enableSoftDelete: enableSoftDelete
+        enableSoftDelete: false
         enabledForTemplateDeployment: true
         enableRbacAuthorization: true
-        enablePurgeProtection: enablePurgeProtection
+        //enablePurgeProtection: enablePurgeProtection
     }
 }
 
