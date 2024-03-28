@@ -19,3 +19,5 @@ output name string = identity.name
 output principalId string = identity.properties.principalId
 @description('Client ID for the deployed Managed Identity resource.')
 output clientId string = identity.properties.clientId
+@description('Tenant ID for the deployed Managed Identity resource.')
+output tenantId string = identity.properties.tenantId
