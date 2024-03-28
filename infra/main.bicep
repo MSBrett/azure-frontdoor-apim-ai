@@ -3,17 +3,21 @@ targetScope = 'subscription'
 @minLength(1)
 @maxLength(64)
 @description('Required. Name of the workload which is used to generate a short unique hash used in all resources.')
-param workloadName string
+param workloadName string = 'fabrikam'
 
 @minLength(1)
 @description('Required. Primary location for all resources.')
-param location string
+param location_aks string = 'westus3'
+
+@minLength(1)
+@description('Required. Primary location for all resources.')
+param location string  = 'eastus'
 
 @description('Required. Email address for the API Management service publisher.')
-param apiManagementPublisherEmail string
+param apiManagementPublisherEmail string = 'info@contoso.com'
 
 @description('Required. Name of the API Management service publisher.')
-param apiManagementPublisherName string
+param apiManagementPublisherName string = 'info@contoso.com'
 
 @description('Name of the resource group. If empty, a unique name will be generated.')
 param resourceGroupName string = ''
@@ -22,16 +26,10 @@ param resourceGroupName string = ''
 param tags object = {}
 
 @description('Address space for the workload.  A /23 is required for the workload.')
-param virtualNetworkAddressPrefix string = '10.2.0.0/23'
+param virtualNetworkAddressPrefix string = '10.4.0.0/22'
 
 @description('A list of IP ranges to accept connections from.')
 param ipAddressRangesToAllow array = ['0.0.0.0/0']
-
-type openAIInstanceInfo = {
-  name: string?
-  location: string
-  suffix: string
-}
 
 @description('Name of the Managed Identity. If empty, a unique name will be generated.')
 param managedIdentityName string = ''
@@ -45,45 +43,82 @@ param openAIName string = ''
 @description('Name of the API Management service. If empty, a unique name will be generated.')
 param apiManagementName string = ''
 
-@description('Id of the log analytics workspace.')
+@description('Required.  Id of the log analytics workspace.')
 param logAnalyticsWorkspaceId string
 
 @description('Required.  Name of the azure front door profile.')
 param frontDoorProfileName string
-@description('Required.  Resource group containing the azure front door profile.')
-param frontDoorResourceGroupName string
-@description('Required.  Subscription containing the azure front door profile.')
-param frontDoorSubscriptionId string
-@description('Required.  Name of the custom DNS zone to use for the workload.')
-param dnsZoneName string 
 
-@description('Location of the self-hosted model image.')
-param text_embeddings_inference_container string = 'docker.io/snpsctg/tei-bge:latest'
+@description('Required.  Resource group containing the azure front door profile.')
+param frontDoorResourceGroupName string = 'GlobalNetworking'
+
+@description('Required.  Subscription containing the azure front door profile.')
+param frontDoorSubscriptionId string = subscription().id
+
+@description('Required.  Name of the custom DNS zone to use for the workload.')
+param dnsZoneName string = 'ai.contoso.com'
 
 @description('Enable purge protection for the Key Vault. Default is true.')
-param enablePurgeProtection bool = true
+param enablePurgeProtection bool = false
+
+param deployJumpBox bool = false
 
 @description('Path to putlish the api to. Default is /workloadName/v1.')
-param apiPathSuffix string = '/${workloadName}/v1'
+param apiPathSuffix string = '/api/v1'
 
 @description('SKU for APIM. Default is Premium.')
 param apimsku string = 'Premium'
 @description('Capacity for APIM. Default is 1.')
 param apimskuCapacity int = 1
 
+@description('Array of groups to be granted AKS cluster access.')
+param aadGroupdIds array = []
+param kubernetesVersion string = '1.29.0'
+param containerYaml string = 'https://raw.githubusercontent.com/MSBrett/azure-frontdoor-apim-ai/main/infra/yaml/deployment.yaml'
+
+@allowed([
+  'Regular'
+  'Spot'
+])
+param gpuScaleSetPriority string = 'Regular'
+@allowed([
+  'Standard_NC24ads_A100_v4'
+  'Standard_NC48ads_A100_v4'
+  'Standard_NC96ads_A100_v4'
+])
+param gpuPoolVmSize string = 'Standard_NC24ads_A100_v4'
+
+@allowed([
+  'Standard_D2s_v5'
+  'Standard_D4s_v5'
+  'Standard_D8s_v5'
+  'Standard_D2s_v4'
+  'Standard_D4s_v4'
+  'Standard_D8s_v4'
+])
+param defaultPoolVmSize string = 'Standard_D2s_v5'
+
 var abbrs = loadJsonContent('./abbreviations.json')
 var roles = loadJsonContent('./roles.json')
 var resourceToken = toLower(uniqueString(subscription().id, workloadName, location))
 var safeWorkloadName = replace(replace(replace('${workloadName}', '-', ''), '_', ''), ' ', '')
-var apimPolicy = loadTextContent('./policies/api.xml')
+var apiPolicy = loadTextContent('./policies/api.xml')
+var openAiPolicy = loadTextContent('./policies/openai.xml')
 
 var rewriteUrl_generate = '/openai/deployments/gpt-35-turbo/chat/completions?api-version=2023-07-01-preview'
 var rewriteUrl_embed = '/openai/deployments/text-embedding-ada-002/embeddings?api-version=2023-07-01-preview'
-var rewriteUrl_rerank = '/rerank'
+var rewriteUrl_rerank = '/predict'
+var adminUsername = 'admin${resourceToken}'
 
 resource resourceGroup 'Microsoft.Resources/resourceGroups@2022-09-01' = {
   name: !empty(resourceGroupName) ? resourceGroupName : '${abbrs.resourceGroup}${workloadName}'
   location: location
+  tags: union(tags, {})
+}
+
+resource resourceGroup_aks 'Microsoft.Resources/resourceGroups@2022-09-01' = {
+  name: !empty(resourceGroupName) ? '${resourceGroupName}-gpu' : '${abbrs.resourceGroup}${workloadName}-aks'
+  location: location_aks
   tags: union(tags, {})
 }
 
@@ -93,11 +128,44 @@ module virtualNetwork 'core/virtual-network.bicep' = {
   params: {
     location: location
     tags: union(tags, {})
-    virtualNetworkAddressPrefix: virtualNetworkAddressPrefix
+    virtualNetworkAddressPrefix: cidrSubnet(virtualNetworkAddressPrefix, 24, 0)
     bastionHostName: '${abbrs.virtualNetwork}${resourceToken}'
     publicIpName: '${abbrs.publicIPAddress}${resourceToken}'
     virtualNetworkName: '${abbrs.virtualNetwork}${resourceToken}'
     logAnalyticsWorkspaceId: logAnalyticsWorkspaceId
+    deployBastion: true
+  }
+}
+
+module virtualNetwork_aks 'core/virtual-network-spoke.bicep' = {
+  name: '${abbrs.virtualNetwork}${resourceToken}_aks'
+  scope: resourceGroup_aks
+  params: {
+    location: location_aks
+    tags: union(tags, {})
+    virtualNetworkAddressPrefix: cidrSubnet(virtualNetworkAddressPrefix, 23, 1)
+    virtualNetworkName: '${abbrs.virtualNetwork}${resourceToken}_aks'
+    logAnalyticsWorkspaceId: logAnalyticsWorkspaceId
+  }
+}
+
+module virtualNetwork_peering_1 'core/virtual-network-peering.bicep' = {
+  name: '${abbrs.virtualNetwork}${resourceToken}-peering-1'
+  scope: resourceGroup
+  params: {
+    virtualNetworkName1: virtualNetwork.outputs.virtualNetworkName
+    virtualNetworkName2: virtualNetwork_aks.outputs.virtualNetworkName
+    virtualNetworkRgName2: resourceGroup_aks.name
+  }
+}
+
+module virtualNetwork_peering_2 'core/virtual-network-peering.bicep' = {
+  name: '${abbrs.virtualNetwork}${resourceToken}-peering-2'
+  scope: resourceGroup_aks
+  params: {
+    virtualNetworkName1: virtualNetwork_aks.outputs.virtualNetworkName
+    virtualNetworkName2: virtualNetwork.outputs.virtualNetworkName
+    virtualNetworkRgName2: resourceGroup.name
   }
 }
 
@@ -226,39 +294,64 @@ module openAI './core/cognitive-services.bicep' = {
   }
 }
 
-module containerAppEnv 'core/container-app-environment.bicep' = {
-  name: '${abbrs.containerAppsEnvironment}${resourceToken}'
+module jumpbox 'core/virtual-machine.bicep' = if (deployJumpBox) {
+  name: '${abbrs.virtualMachine}${resourceToken}'
   scope: resourceGroup
   params: {
     location: location
-    logAnalyticsWorkspaceId: logAnalyticsWorkspaceId
-    containerAppEnvSubnetId: virtualNetwork.outputs.containerAppEnvSubnetId
-    containerAppEnvName: '${abbrs.containerAppsEnvironment}${resourceToken}'
+    subnetId: virtualNetwork.outputs.serviceSubnetId
+    vmName: '${abbrs.virtualMachine}${resourceToken}'
+    vmSize: 'Standard_D2s_v4'
+    adminUsername: adminUsername
+    publicKey: loadTextContent('../../../.ssh/id_rsa.pub')
   }
 }
 
-module text_embeddings_inference 'core/container-app.bicep' = {
-  name: '${abbrs.containerApp}${resourceToken}'
-  scope: resourceGroup
+var groupIds = concat(aadGroupdIds, [managedIdentity.outputs.principalId])
+module aks 'core/aks-cluster.bicep' = {
+  name: 'aks'
+  scope: resourceGroup_aks
   params: {
-    location: location
-    containerAppName: '${abbrs.containerApp}${resourceToken}'
-    containerImage: text_embeddings_inference_container
-    cpuCore: '2'
-    targetPort: 80
-    memorySize: '4'
-    containerAppEnvId: containerAppEnv.outputs.id
-    minReplicas: 3
+    location: location_aks
+    aadGroupdIds: groupIds
+    clusterName: '${abbrs.aksCluster}${resourceToken}'
+    kubernetesVersion: kubernetesVersion
+    logworkspaceid: logAnalyticsWorkspaceId
+    subnetId: virtualNetwork_aks.outputs.workloadSubnetId
+    vnetName: virtualNetwork_aks.outputs.virtualNetworkName
+    nodeResourceGroupName: '${resourceGroup_aks.name}-mc'
+    infraResourceGroupName: resourceGroup_aks.name
+    gpuScaleSetPriority: gpuScaleSetPriority
+    gpuPoolVmSize: gpuPoolVmSize
+    defaultPoolVmSize: defaultPoolVmSize
+    adminUsername: adminUsername
   }
 }
 
-module containerAppDns 'core/container-app-environment-dns.bicep' = {
-  name: '${abbrs.containerAppsEnvironment}${resourceToken}-dns'
-  scope: resourceGroup
+module aksClusterAdminRole 'core/role.bicep' = {
+  name: 'aks-cluster-admin-role'
+  scope: resourceGroup_aks
   params: {
-    defaultDomain: containerAppEnv.outputs.defaultDomain
-    ipv4Address: containerAppEnv.outputs.staticIp
-    virtualNetworkId: virtualNetwork.outputs.virtualNetworkId
+    principalId: managedIdentity.outputs.principalId
+    resourceGroupName: resourceGroup_aks.name
+    roleGuid: '3498e952-d568-435e-9b2c-8d77e338d7f7' // AKS RBAC Admin
+  }
+}
+
+module deployContainer 'core/container-deployment.bicep' = {
+  name: 'deployContainer'
+  scope: resourceGroup_aks
+  dependsOn: [
+    aks
+    aksClusterAdminRole
+  ]
+  params: {
+    clusterName: aks.outputs.clusterName
+    location: location_aks
+    clusterResourceGroupName:resourceGroup_aks.name
+    identityPrincipalId: managedIdentity.outputs.principalId
+    identityResourceId: managedIdentity.outputs.id
+    yamlFile: containerYaml
   }
 }
 
@@ -290,7 +383,7 @@ module apiSubscription './core/api-management-subscription.bicep' = {
     name: 'openai-sub'
     apiManagementName: apiManagement.outputs.name
     displayName: 'API Subscription'
-    scope: '/apis'
+    scope:  '/apis' //'/apis${apiPathSuffix}'
   }
 }
 
@@ -327,7 +420,7 @@ module apiPolicy_generate './core/api-management-operation-policy.bicep' = {
     apiManagementName: apiManagement.outputs.name
     apiName: api.outputs.name
     format: 'rawxml'
-    value: replace(replace(replace(apimPolicy, '<REWRITEURL>', rewriteUrl_generate) , '<SERVICEURL>', 'https://${openAI.outputs.name}.${openAI.outputs.privateDnsZoneName}'), '<FRONTDOORID>', frontDoor.outputs.frontDoorId)
+    value: replace(replace(replace(openAiPolicy, '<REWRITEURL>', rewriteUrl_generate) , '<SERVICEURL>', 'https://${openAI.outputs.name}.${openAI.outputs.privateDnsZoneName}'), '<FRONTDOORID>', frontDoor.outputs.frontDoorId)
     operationName: 'generate'
   }
 }
@@ -339,19 +432,19 @@ module apiPolicy_embed './core/api-management-operation-policy.bicep' = {
     apiManagementName: apiManagement.outputs.name
     apiName: api.outputs.name
     format: 'rawxml'
-    value: replace(replace(replace(apimPolicy, '<REWRITEURL>', rewriteUrl_embed) , '<SERVICEURL>', 'https://${openAI.outputs.name}.${openAI.outputs.privateDnsZoneName}'), '<FRONTDOORID>', frontDoor.outputs.frontDoorId)
+    value: replace(replace(replace(openAiPolicy, '<REWRITEURL>', rewriteUrl_embed) , '<SERVICEURL>', 'https://${openAI.outputs.name}.${openAI.outputs.privateDnsZoneName}'), '<FRONTDOORID>', frontDoor.outputs.frontDoorId)
     operationName: 'embed'
   }
 }
 
-module apiPolicy_rerank './core/api-management-operation-policy.bicep' = {
+module apiPolicy_predict './core/api-management-operation-policy.bicep' = {
   name: '${apiManagement.name}-policy-rerank'
   scope: resourceGroup
   params: {
     apiManagementName: apiManagement.outputs.name
     apiName: api.outputs.name
     format: 'rawxml'
-    value: replace(replace(replace(apimPolicy, '<REWRITEURL>', rewriteUrl_rerank) , '<SERVICEURL>', 'https://${text_embeddings_inference.outputs.containerAppFQDN}'), '<FRONTDOORID>', frontDoor.outputs.frontDoorId)
+    value: replace(replace(replace(apiPolicy, '<REWRITEURL>', rewriteUrl_rerank) , '<SERVICEURL>', 'http://10.4.2.111'), '<FRONTDOORID>', frontDoor.outputs.frontDoorId)
     operationName: 'rerank'
   }
 }
@@ -387,6 +480,7 @@ output managedIdentityInstance object = {
   name: managedIdentity.outputs.name
   principalId: managedIdentity.outputs.principalId
   clientId: managedIdentity.outputs.clientId
+  tenantId: managedIdentity.outputs.tenantId
 }
 
 output keyVaultInstance object = {
@@ -402,11 +496,11 @@ output openAIInstance object = {
   location: location
   suffix: 'aoai'
 }
-
+/*
 output apiManagementInstance object = {
   id: apiManagement.outputs.id
   name: apiManagement.outputs.name
   gatewayUrl: apiManagement.outputs.gatewayUrl
   apiSubscriptionName: apiSubscription.outputs.name
 }
-
+*/
