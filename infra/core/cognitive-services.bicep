@@ -55,7 +55,8 @@ param publicNetworkAccess string = 'Enabled'
 @description('Properties to store in a Key Vault.')
 param keyVaultSecrets keyVaultSecretsInfo?
 param logAnalyticsWorkspaceId string = ''
-var privateEndpointName = '${name}-ep}'
+var policyName = '${name}-policy'
+var privateEndpointName = '${name}-ep'
 var privateDnsZoneName = 'privatelink.openai.azure.com'
 var pvtEndpointDnsGroupName = '${privateEndpointName}/openai-endpoint-zone'
 
@@ -76,13 +77,97 @@ resource cognitiveServices 'Microsoft.CognitiveServices/accounts@2023-05-01' = {
   sku: sku
 }
 
+resource raiPolicy 'Microsoft.CognitiveServices/accounts/raiPolicies@2023-10-01-preview' = {
+  parent: cognitiveServices
+  name: policyName
+  properties: {
+    basePolicyName: 'Microsoft.Default'
+    contentFilters:[
+      {
+          name: 'Hate'
+          allowedContentLevel: 'Medium'
+          blocking: true
+          enabled: true
+          source: 'Prompt'
+      }
+      {
+          name: 'Hate'
+          allowedContentLevel: 'Medium'
+          blocking: true
+          enabled: true
+          source: 'Completion'
+      }
+      {
+          name: 'Sexual'
+          allowedContentLevel: 'Medium'
+          blocking: true
+          enabled: true
+          source: 'Prompt'
+      }
+      {
+          name: 'Sexual'
+          allowedContentLevel: 'Medium'
+          blocking: true
+          enabled: true
+          source: 'Completion'
+      }
+      {
+          name: 'Violence'
+          allowedContentLevel: 'Medium'
+          blocking: true
+          enabled: true
+          source: 'Prompt'
+      }
+      {
+          name: 'Violence'
+          allowedContentLevel: 'Medium'
+          blocking: true
+          enabled: true
+          source: 'Completion'
+      }
+      {
+          name: 'Selfharm'
+          allowedContentLevel: 'Medium'
+          blocking: true
+          enabled: true
+          source: 'Prompt'
+      }
+      {
+          name: 'Selfharm'
+          allowedContentLevel: 'Medium'
+          blocking: true
+          enabled: true
+          source: 'Completion'
+      }
+      {
+        name: 'jailbreak'
+        blocking: true
+        enabled: true
+        source: 'Prompt'
+      }
+      {
+          name: 'protected_material_text'
+          blocking: true
+          enabled: true
+          source: 'Completion'
+      }
+      {
+          name: 'protected_material_code'
+          blocking: true
+          enabled: true
+          source: 'Completion'
+      }
+    ]
+  }
+}
+
 @batchSize(1)
 resource deployment 'Microsoft.CognitiveServices/accounts/deployments@2023-05-01' = [for deployment in deployments: {
   parent: cognitiveServices
   name: deployment.name
   properties: {
     model: contains(deployment, 'model') ? deployment.model : null
-    raiPolicyName: contains(deployment, 'raiPolicyName') ? deployment.raiPolicyName : null
+    raiPolicyName: contains(deployment, 'raiPolicyName') ? deployment.raiPolicyName : raiPolicy.name
   }
   sku: contains(deployment, 'sku') ? deployment.sku : {
     name: 'Standard'
