@@ -72,7 +72,6 @@ param apimskuCapacity int = 1
 @description('Array of groups to be granted AKS cluster access.')
 param aadGroupdIds array = []
 param kubernetesVersion string = '1.29.0'
-param containerYaml string = 'https://raw.githubusercontent.com/MSBrett/azure-frontdoor-apim-ai/main/infra/yaml/deployment.yaml'
 
 @allowed([
   'Regular'
@@ -320,23 +319,6 @@ module aksClusterAdminRole 'core/role.bicep' = {
     principalId: managedIdentity.outputs.principalId
     resourceGroupName: resourceGroup_aks.name
     roleGuid: '3498e952-d568-435e-9b2c-8d77e338d7f7' // AKS RBAC Admin
-  }
-}
-
-module deployContainer 'core/container-deployment.bicep' = {
-  name: 'deployContainer'
-  scope: resourceGroup_aks
-  dependsOn: [
-    aks
-    aksClusterAdminRole
-  ]
-  params: {
-    clusterName: aks.outputs.clusterName
-    location: location_aks
-    clusterResourceGroupName:resourceGroup_aks.name
-    identityPrincipalId: managedIdentity.outputs.principalId
-    identityResourceId: managedIdentity.outputs.id
-    yamlFile: containerYaml
   }
 }
 
